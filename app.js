@@ -2,7 +2,7 @@ const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY='constancia.recovery.before-merge-v3';
+const RECOVERY='constancia.recovery.before-mobile-sync-v4';
 try{
  const saved=localStorage.getItem(STORAGE);savedRevision=saved;
  Persistence.protect(localStorage,RECOVERY,saved);
@@ -14,10 +14,10 @@ try{
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=(d,opts)=>H.date(d).toLocaleDateString('pt-BR',opts);
 function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),4500)}
-function commit(next){try{
+function commit(next,notify=true){try{
  H.validate(next);
  if(localStorage.getItem(STORAGE)!==savedRevision){toast('Outra aba alterou os dados. Recarregue para ver os registros atuais antes de salvar.');return false}
- const serialized=JSON.stringify(next);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();return true
+ const serialized=JSON.stringify(next);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();if(notify)window.dispatchEvent(new CustomEvent("constancia:change"));return true
 }catch(e){toast('Não foi possível salvar. Os registros anteriores foram mantidos; faça um backup.');return false}}
 function update(fn){if(recoveryRequired){toast('Restaure um backup para proteger os dados que não puderam ser lidos.');return false}const next=JSON.parse(JSON.stringify(state));fn(next);return commit(next)}
 function render(){
@@ -86,3 +86,11 @@ $('closeDay').onclick=$('dayDone').onclick=()=>$('dayDialog').close();
 $('dayNew').onclick=()=>{$('dayDialog').close();openEditor()};
 
 for(const [id,key,name]of [['beforeImportBackup','constancia.recovery.before-restore','constancia-antes-da-importacao.json'],['importSourceBackup','constancia.recovery.import-source','constancia-arquivo-importado.json']])$(id).onclick=()=>{const raw=localStorage.getItem(key);if(!raw){toast('Não há uma cópia desta importação neste navegador.');return}downloadBackup(raw,name);toast('Cópia de recuperação preparada.');};
+
+window.ConstanciaData={
+ read:()=>Persistence.clone(state),
+ blocked:()=>recoveryRequired,
+ apply:(next,expected)=>{if(recoveryRequired||!ConstanciaSyncCore.equal(state,expected))return false;return commit(H.validate(Persistence.clone(next)),false)},
+ protect:(key,value)=>{localStorage.setItem(key,JSON.stringify(value))},
+ pristine:()=>{const clean=initial();clean.body=Body.seed();clean.training=Training.seed();const current=Persistence.clone(state);current.habits.forEach(h=>{h.start=today});return ConstanciaSyncCore.equal(current,clean)}
+};

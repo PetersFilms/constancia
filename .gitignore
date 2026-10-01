@@ -1,8 +1,17 @@
+node_modules/
 backups/
 *.json
+!package.json
+!package-lock.json
 *.png
+!icon-192.png
+!icon-512.png
+!apple-touch-icon.png
 *.command
 server.py
 test-*.cjs
-.DS_Store
 
+.env
+.env.*
+*.log
+.DS_Store

@@ -1,0 +1,8 @@
+{
+  "name": "constancia",
+  "private": true,
+  "version": "1.4.0",
+  "scripts": {"build:sdk": "esbuild sdk-entry.js --bundle --minify --format=iife --global-name=ConstanciaCloud --outfile=cloud-sdk.js", "test": "node --test *.test.cjs"},
+  "dependencies": {"@supabase/supabase-js": "2.117.2"},
+  "devDependencies": {"esbuild": "0.28.2", "jsdom": "27.0.1"}
+}
