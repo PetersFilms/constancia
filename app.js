@@ -1,15 +1,28 @@
 const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
-let state,recoveryRequired=false;
-try{const saved=localStorage.getItem(STORAGE);state=saved?H.validate(JSON.parse(saved)):initial();if(state.body===undefined){state.body=Body.seed();localStorage.setItem(STORAGE,JSON.stringify(state))}}catch(e){state=initial();recoveryRequired=true;setTimeout(()=>toast('Não foi possível ler os dados salvos. Restaure um backup antes de registrar.'),100)}
+let state,recoveryRequired=false,savedRevision=null;
+const RECOVERY='constancia.recovery.before-training-v2';
+try{
+ const saved=localStorage.getItem(STORAGE);savedRevision=saved;
+ Persistence.protect(localStorage,RECOVERY,saved);
+ state=saved?H.validate(JSON.parse(saved)):initial();let migrated=false;
+ if(state.body===undefined){state.body=Body.seed();migrated=true}
+ if(state.training===undefined){state.training=Training.seed();migrated=true}
+ if(migrated){const serialized=JSON.stringify(state);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;}
+}catch(e){state=initial();state.body=Body.seed();state.training=Training.seed();recoveryRequired=true;setTimeout(()=>toast('Os dados originais foram mantidos. Faça um backup e restaure um arquivo válido antes de registrar.'),100)}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=(d,opts)=>H.date(d).toLocaleDateString('pt-BR',opts);
 function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),4500)}
-function commit(next){try{H.validate(next);localStorage.setItem(STORAGE,JSON.stringify(next));state=next;render();return true}catch(e){toast('Não foi possível salvar. Faça um backup e verifique o armazenamento do navegador.');return false}}
+function commit(next){try{
+ H.validate(next);
+ if(localStorage.getItem(STORAGE)!==savedRevision){toast('Outra aba alterou os dados. Recarregue para ver os registros atuais antes de salvar.');return false}
+ const serialized=JSON.stringify(next);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();return true
+}catch(e){toast('Não foi possível salvar. Os registros anteriores foram mantidos; faça um backup.');return false}}
 function update(fn){if(recoveryRequired){toast('Restaure um backup para proteger os dados que não puderam ser lidos.');return false}const next=JSON.parse(JSON.stringify(state));fn(next);return commit(next)}
 function render(){
- if(window.renderBody)window.renderBody();
+ $('dataStatus').hidden=!recoveryRequired;$('dataStatus').textContent=recoveryRequired?'Os dados salvos não puderam ser lidos. A versão original continua no navegador; faça um backup antes de restaurar. Novos registros estão bloqueados para proteger seu histórico.':'';
+ if(window.renderBody)window.renderBody();if(window.renderTraining)window.renderTraining();
  today=H.key(new Date());if(selected>today)selected=today;$('date').max=today;$('date').value=selected;$('next').disabled=selected>=today;
  const daily=H.day(state,today),p=H.period(state,today,Number($('range').value)),total=Object.values(state.checks).reduce((sum,c)=>sum+Object.values(c).filter(Boolean).length,0),streak=H.streak(state,today);
  $('stats').innerHTML=`<div class="stat"><span class="label">Hoje</span><strong>${daily.done} <span>/ ${daily.planned}</span></strong><small>${daily.planned&&daily.done===daily.planned?'Seu dia está completo.':'Hábitos concluídos'}</small></div><div class="stat"><span class="label">Sequência atual</span><strong>${streak} <span>${streak===1?'dia':'dias'}</span></strong><small>Dias previstos completos</small></div><div class="stat"><span class="label">Pequenos avanços</span><strong>${total}</strong><small>Registros desde o início</small></div>`;
@@ -40,10 +53,12 @@ document.addEventListener('click',e=>{const t=e.target.closest('button');if(!t)r
 function changeMonth(n){const d=H.date(month+'-01');d.setMonth(d.getMonth()+n);month=H.key(d).slice(0,7);renderCalendar()}$('prevMonth').onclick=()=>changeMonth(-1);$('nextMonth').onclick=()=>changeMonth(1);
 $('habitForm').onsubmit=e=>{e.preventDefault();const days=[...document.querySelectorAll('input[name=days]:checked')].map(x=>Number(x.value)),name=$('name').value.trim();if(!name||!days.length){toast('Dê um nome ao hábito e escolha pelo menos um dia.');return}const ok=update(s=>{const h={id:editing||crypto.randomUUID(),name,goal:$('goal').value.trim(),start:$('start').value,days};const i=s.habits.findIndex(x=>x.id===editing);if(i>=0)s.habits[i]={...s.habits[i],...h};else s.habits.push(h)});if(ok){$('editor').close();toast('Hábito salvo.')}};
 $('archive').onclick=()=>{if(update(s=>{s.habits.find(h=>h.id===editing).archivedOn=today})){$('editor').close();toast('Hábito arquivado. Seus registros foram preservados.')}};
-$('export').onclick=()=>{const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`constancia-${today}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast('Backup preparado para download.')};
-$('restore').onclick=()=>$('import').click();$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{if(f.size>5000000)throw Error('Arquivo grande demais.');pending=H.validate(JSON.parse(await f.text()));if(pending.body===undefined)pending.body=JSON.parse(JSON.stringify(state.body||{version:1,records:[]}));if(pending.body.weights===undefined)pending.body.weights=JSON.parse(JSON.stringify(state.body?.weights||[]));$('restoreDialog').showModal()}catch(err){toast('Esse arquivo não é um backup válido do Constância.')}e.target.value=''};
-$('cancelRestore').onclick=()=>{pending=null;$('restoreDialog').close()};$('confirmRestore').onclick=()=>{if(pending&&commit(pending)){recoveryRequired=false;pending=null;$('restoreDialog').close();toast('Backup restaurado.')}};
-window.addEventListener('storage',e=>{if(e.key===STORAGE&&e.newValue){try{state=H.validate(JSON.parse(e.newValue));render()}catch{toast('Os dados de outra aba não puderam ser lidos.')}}});
+function downloadBackup(content,name){const blob=new Blob([content],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('export').onclick=()=>{downloadBackup(localStorage.getItem(STORAGE)||JSON.stringify(state,null,2),`constancia-${today}.json`);toast('Backup preparado para download.')};
+$('recoveryBackup').onclick=()=>{const raw=localStorage.getItem(RECOVERY);if(!raw){toast('Não há uma cópia anterior nesta origem do navegador.');return}downloadBackup(raw,'constancia-antes-da-atualizacao.json');toast('Cópia anterior preparada para download.')};
+$('restore').onclick=()=>$('import').click();$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;pending=null;try{if(f.size>15000000)throw Error('Arquivo grande demais.');const incoming=JSON.parse(await f.text());pending=Persistence.restore(incoming,state);pending=H.validate(pending);$('restoreDialog').showModal()}catch(err){pending=null;toast('Esse arquivo não é um backup válido do Constância. Os dados atuais foram preservados.')}e.target.value=''};
+$('cancelRestore').onclick=()=>{pending=null;$('restoreDialog').close()};$('confirmRestore').onclick=()=>{if(!pending)return;try{const raw=localStorage.getItem(STORAGE);if(raw!==null)localStorage.setItem('constancia.recovery.before-restore',raw);}catch{toast('Não foi possível proteger os dados anteriores. A restauração foi cancelada.');return;}if(commit(pending)){recoveryRequired=false;pending=null;$('restoreDialog').close();toast('Backup restaurado. Partes ausentes no arquivo foram preservadas.')}};
+window.addEventListener('storage',e=>{if(e.key===STORAGE&&e.newValue){try{const incoming=H.validate(JSON.parse(e.newValue));state=incoming;savedRevision=e.newValue;recoveryRequired=false;render()}catch{recoveryRequired=true;toast('Os dados de outra aba não puderam ser lidos. Os registros foram mantidos.')}}});
 window.addEventListener('focus',()=>{if(H.key(new Date())!==today)render()});render();
 
 $('past').onclick=()=>{ $('pastDate').max=today;$('pastDate').value=selected;$('pastHabit').innerHTML=state.habits.map(h=>`<option value="${h.id}">${esc(h.name)}${h.archivedOn?' (arquivado)':''}</option>`).join('');$('pastDialog').showModal() };

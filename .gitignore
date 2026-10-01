@@ -1,0 +1,8 @@
+backups/
+*.json
+*.png
+*.command
+server.py
+test-*.cjs
+.DS_Store
+
