@@ -1,8 +1,8 @@
 const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
-let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,toastTimer;
+let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY='constancia.recovery.before-training-v2';
+const RECOVERY='constancia.recovery.before-merge-v3';
 try{
  const saved=localStorage.getItem(STORAGE);savedRevision=saved;
  Persistence.protect(localStorage,RECOVERY,saved);
@@ -56,8 +56,17 @@ $('archive').onclick=()=>{if(update(s=>{s.habits.find(h=>h.id===editing).archive
 function downloadBackup(content,name){const blob=new Blob([content],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('export').onclick=()=>{downloadBackup(localStorage.getItem(STORAGE)||JSON.stringify(state,null,2),`constancia-${today}.json`);toast('Backup preparado para download.')};
 $('recoveryBackup').onclick=()=>{const raw=localStorage.getItem(RECOVERY);if(!raw){toast('Não há uma cópia anterior nesta origem do navegador.');return}downloadBackup(raw,'constancia-antes-da-atualizacao.json');toast('Cópia anterior preparada para download.')};
-$('restore').onclick=()=>$('import').click();$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;pending=null;try{if(f.size>15000000)throw Error('Arquivo grande demais.');const incoming=JSON.parse(await f.text());pending=Persistence.restore(incoming,state);pending=H.validate(pending);$('restoreDialog').showModal()}catch(err){pending=null;toast('Esse arquivo não é um backup válido do Constância. Os dados atuais foram preservados.')}e.target.value=''};
-$('cancelRestore').onclick=()=>{pending=null;$('restoreDialog').close()};$('confirmRestore').onclick=()=>{if(!pending)return;try{const raw=localStorage.getItem(STORAGE);if(raw!==null)localStorage.setItem('constancia.recovery.before-restore',raw);}catch{toast('Não foi possível proteger os dados anteriores. A restauração foi cancelada.');return;}if(commit(pending)){recoveryRequired=false;pending=null;$('restoreDialog').close();toast('Backup restaurado. Partes ausentes no arquivo foram preservadas.')}};
+function prepareImport(){
+ if(!pendingSource)return;
+ const replace=$('importMode').value==='replace';
+ const result=replace?{state:Persistence.restore(pendingSource,state),conflicts:[]}:Persistence.merge(pendingSource,state);
+ pending=H.validate(result.state);
+ $('importSummary').textContent=`O histórico terá ${pending.habits.length} hábitos, ${pending.training?.sessions.length||0} sessões de treino, ${pending.body?.records.length||0} avaliações e ${pending.body?.weights?.length||0} pesagens. ${replace?'As coleções presentes no arquivo substituirão as atuais. Partes ausentes serão preservadas.':result.conflicts.length?`${result.conflicts.length} registro(s) com diferenças: a versão deste navegador será mantida. Os dois históricos terão cópias de recuperação.`:'Registros já existentes não serão duplicados.'}`;
+ $('confirmRestore').textContent=replace?'Substituir pelo backup':'Reunir históricos';
+}
+$('importMode').onchange=prepareImport;
+$('restore').onclick=()=>$('import').click();$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;pending=null;pendingSource=null;try{if(f.size>15000000)throw Error('Arquivo grande demais.');const incoming=JSON.parse(await f.text());H.validate(incoming);pendingSource=incoming;$('importMode').value=recoveryRequired?'replace':'merge';prepareImport();$('restoreDialog').showModal()}catch(err){pending=null;pendingSource=null;toast('Esse arquivo não é um backup válido do Constância. Os dados atuais foram preservados.')}e.target.value=''};
+$('cancelRestore').onclick=()=>{pending=null;pendingSource=null;$('restoreDialog').close()};$('confirmRestore').onclick=()=>{if(!pending)return;try{const raw=localStorage.getItem(STORAGE);if(raw!==null)localStorage.setItem('constancia.recovery.before-restore',raw);if(pendingSource)localStorage.setItem('constancia.recovery.import-source',JSON.stringify(pendingSource));}catch{toast('Não foi possível proteger os dados anteriores. A restauração foi cancelada.');return;}if(commit(pending)){const replaced=$('importMode').value==='replace';recoveryRequired=false;pending=null;pendingSource=null;$('restoreDialog').close();toast(replaced?'Backup restaurado. Cópias dos históricos foram protegidas.':'Históricos reunidos. Os dados anteriores foram preservados.')}};
 window.addEventListener('storage',e=>{if(e.key===STORAGE&&e.newValue){try{const incoming=H.validate(JSON.parse(e.newValue));state=incoming;savedRevision=e.newValue;recoveryRequired=false;render()}catch{recoveryRequired=true;toast('Os dados de outra aba não puderam ser lidos. Os registros foram mantidos.')}}});
 window.addEventListener('focus',()=>{if(H.key(new Date())!==today)render()});render();
 
@@ -75,3 +84,5 @@ function openDay(){renderDayChoices();$('daySaved').textContent='Marque os hábi
 $('dayChoices').addEventListener('change',e=>{const input=e.target,id=input.dataset.dayHabit;if(!id)return;const checked=input.checked;const ok=update(s=>{s.checks[id]??={};if(checked)s.checks[id][selected]=true;else delete s.checks[id][selected]});if(!ok)input.checked=!checked;else{$('daySaved').textContent='Alteração salva.';[...$('dayChoices').querySelectorAll('input')].find(el=>el.dataset.dayHabit===id)?.focus()}});
 $('closeDay').onclick=$('dayDone').onclick=()=>$('dayDialog').close();
 $('dayNew').onclick=()=>{$('dayDialog').close();openEditor()};
+
+for(const [id,key,name]of [['beforeImportBackup','constancia.recovery.before-restore','constancia-antes-da-importacao.json'],['importSourceBackup','constancia.recovery.import-source','constancia-arquivo-importado.json']])$(id).onclick=()=>{const raw=localStorage.getItem(key);if(!raw){toast('Não há uma cópia desta importação neste navegador.');return}downloadBackup(raw,name);toast('Cópia de recuperação preparada.');};
