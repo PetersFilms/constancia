@@ -35,3 +35,7 @@ O GitHub Pages publica a pasta raiz da branch `main`. Os arquivos do aplicativo 
 `npm ci` instala dependências com versões fixas. `npm run build:sdk` atualiza a biblioteca Supabase distribuída em `cloud-sdk.js`. `npm test` verifica preservação, catálogo, gráficos, revisões, conflitos, desmarcações, recarga offline, alterações durante envio e troca de conta. O arquivo `database.sql` documenta o esquema instalado no projeto privado. Não o execute em outro projeto existente sem revisar o esquema.
 
 As regras permanentes de preservação estão em AGENTS.md. Dados pessoais e backups não devem ser publicados. `Body.seed()` na cópia pública permanece vazio.
+
+## Identidade visual
+
+A interface usa a paleta azul e cinza da referência: fundo azul acinzentado `#4A5C6A`, superfícies secundárias `#11212D`, cartões de gráficos `#253745`, divisórias `#4A5C6A` e superfícies claras em `#CCD0CF` nos resumos, na prática, no calendário, nos treinos e no registro de peso. Os cartões claros usam texto azul escuro, com níveis do calendário e gráfico de peso ajustados ao novo contraste. Textos usam cinzas claros com contraste ajustado. O fundo usa a cor uniforme `#4A5C6A`, mantendo os cartões claros. A Pogonia fornecida pelo usuário é carregada localmente em WOFF2 nos pesos regular, médio e semibold, com os arquivos incluídos no cache offline. Os créditos da fonte estão em FONT-NOTICE.md. Esta mudança visual preserva as chaves de armazenamento, a sincronização e os registros existentes.
