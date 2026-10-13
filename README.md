@@ -22,7 +22,7 @@ Sair preserva o histórico local e sua associação à conta. Uma conta diferent
 
 ## Preservação e recuperação
 
-A chave `constancia.v1` permanece. A atualização guarda o conteúdo original em `constancia.recovery.before-mobile-sync-v4`, sem remover recuperações anteriores. Há cópias antes da vinculação, da primeira sincronização e de conflitos. Antes da primeira atualização de um histórico sincronizado em cada dia, o banco guarda uma cópia diária privada.
+A chave `constancia.v1` permanece. A atualização guarda o conteúdo original em `constancia.recovery.before-mobile-sync-v4`, sem remover recuperações anteriores. Há cópias antes da vinculação, da primeira sincronização e de conflitos. Novas cópias de sincronização ficam no IndexedDB local, com JSON completo, e as cópias anteriores permanecem. Minha conta permite baixar a cópia anterior deste aparelho. Antes da primeira atualização de um histórico sincronizado em cada dia, o banco guarda uma cópia diária privada.
 
 **Backup** baixa o histórico deste aparelho. **Minha conta** oferece a cópia atual da nuvem e a última recuperação diária. **Restaurar** reúne históricos por padrão, preservando campos e áreas futuras. Arquivo local, localhost e GitHub Pages são origens diferentes: importe um backup na origem online para levar um histórico local antigo para a conta. Nenhum histórico pessoal faz parte do repositório.
 

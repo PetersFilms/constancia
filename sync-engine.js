@@ -7,7 +7,7 @@
   load(){const raw=this.store.getItem(this.key);if(!raw)return {version:1};let value=JSON.parse(raw);if(value.version===2&&value.codec==='lz-utf16'&&typeof value.payload==='string'&&codec?.decompressFromUTF16){const decoded=codec.decompressFromUTF16(value.payload);if(!decoded)throw Error('Configuração de sincronização inválida; histórico preservado.');value=JSON.parse(decoded);}if(value.version!==1)throw Error('Versão de sincronização incompatível. Atualize o aplicativo.');return value;}
   persist(meta){const raw=JSON.stringify(meta),stored=raw.length>80000&&codec?.compressToUTF16?JSON.stringify({version:2,codec:'lz-utf16',payload:codec.compressToUTF16(raw)}):raw;this.store.setItem(this.key,stored);this.meta=meta;}
   owned(user){return !!user&&this.meta.owner===user;}
-  link(user,pristine){if(this.meta.owner&&this.meta.owner!==user)throw Error('Entre na conta original deste histórico.');this.data.protect('constancia.recovery.before-account-link',this.data.read());this.persist({...this.meta,owner:user,firstMode:pristine?'cloud':'import',joinBaseline:this.data.read()});}
+  link(user,pristine){if(this.meta.owner&&this.meta.owner!==user)throw Error('Entre na conta original deste histórico.');const baseline=this.data.read(),gen=this.generation,finish=()=>{if(gen!==this.generation||this.meta.owner&&this.meta.owner!==user)throw Error('A conta mudou durante a vinculação.');this.persist({...this.meta,owner:user,firstMode:pristine?'cloud':'import',joinBaseline:baseline});};const protection=this.data.protect('constancia.recovery.before-account-link',baseline);return protection?.then?protection.then(finish):finish();}
   cancel(){this.generation++;this.conflict=null;}
   async flush(user,preference){
    if(this.running||!this.owned(user)||this.data.blocked())return false;
@@ -22,12 +22,14 @@
      else result=C.reconcile(this.meta.base||this.meta.joinBaseline||cloud.state,local,cloud.state,preference||'local');
      if(result.conflicts.length&&!preference){
       this.conflict={local,remote:cloud.state,base:this.meta.base,conflicts:result.conflicts};
-      this.data.protect('constancia.recovery.sync-conflicts',this.conflict);
+      await this.data.protect('constancia.recovery.sync-conflicts',this.conflict);
+      if(gen!==this.generation||!this.owned(user))return false;
       this.status('Há versões diferentes · Toque para revisar','conflict');return false;
      }
      if(result.conflicts.length&&preference==='remote'&&!this.meta.base&&this.meta.firstMode==='import')result=root.Persistence.merge(local,cloud.state);
      // Keep an on-device recovery copy before changing the cloud or this device.
-     if(!this.meta.base)this.data.protect('constancia.recovery.before-first-sync',local);
+     if(!this.meta.base)await this.data.protect('constancia.recovery.before-first-sync',local);
+     if(gen!==this.generation||!this.owned(user))return false;
      let saved=cloud;
      if(!cloud.state||!C.equal(result.state,cloud.state)){
       saved=await this.saveCloud(user,cloud.revision||0,result.state);

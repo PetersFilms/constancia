@@ -93,6 +93,6 @@ window.ConstanciaData={
  read:()=>Persistence.clone(state),
  blocked:()=>recoveryRequired,
  apply:(next,expected)=>{if(recoveryRequired||!ConstanciaSyncCore.equal(state,expected))return false;return commit(H.validate(Persistence.clone(next)),false)},
- protect:(key,value)=>{localStorage.setItem(key,JSON.stringify(value))},
+ protect:(key,value)=>window.ConstanciaRecovery?ConstanciaRecovery.save(key,JSON.stringify(value)):localStorage.setItem(key,JSON.stringify(value)),
  pristine:()=>{const clean=initial();clean.body=Body.seed();clean.training=Training.seed();clean.todo=ToDoCore.seed();const current=Persistence.clone(state);current.habits.forEach(h=>{h.start=today});return ConstanciaSyncCore.equal(current,clean)}
 };

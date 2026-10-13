@@ -14,6 +14,18 @@ test('edits during upload survive and reach the cloud on the next pass',async()=
 test('account switching and cancellation cannot upload the previous history',async()=>{const cloud={state:base(),revision:1},a=setup(base(),cloud);a.engine.link('user-a',true);assert.throws(()=>a.engine.link('user-b',false));assert.equal(await a.engine.flush('user-b'),false);const previous=clone(cloud);a.engine.readCloud=async()=>{a.engine.cancel();return clone(cloud);};assert.equal(await a.engine.flush('user-a'),false);assert.deepEqual(cloud,previous);});
 test('quota or invalid metadata blocks linking without changing history',()=>{const cloud={state:base(),revision:1},a=setup(base(),cloud);a.config.data.protect=()=>{throw Error('quota');};assert.throws(()=>a.engine.link('user-a',false));assert.equal(a.engine.meta.owner,undefined);assert.deepEqual(a.read(),base());a.store.set('constancia.sync.v1','{"version":999}');assert.throws(()=>new Engine(a.config));});
 test('pristine phone receives cloud history without uploading starter habits',async()=>{const local=base(),cloud={state:base(),revision:3};cloud.state.habits=[{...local.habits[0],name:'Personalizado',id:'custom'}];cloud.state.checks={custom:{'2026-09-10':true}};const a=setup(local,cloud);a.engine.link('user-a',true);await a.engine.flush('user-a');assert.equal(cloud.revision,3);assert.deepEqual(a.read(),cloud.state);});
+test('async recovery is confirmed before linking or uploading and failures preserve both histories',async()=>{
+ const cloud={state:base(),revision:1},a=setup(base(),cloud);let release;
+ a.config.data.protect=()=>new Promise(resolve=>{release=resolve;});const linking=a.engine.link('user-a',true);assert.equal(a.engine.meta.owner,undefined);release();await linking;assert.equal(a.engine.meta.owner,'user-a');
+ a.edit(s=>s.checks.h1['2026-09-10']=true);let saved=false;const save=a.engine.saveCloud;a.engine.saveCloud=async(...args)=>{saved=true;return save(...args);};
+ a.config.data.protect=async()=>{throw Error('recovery unavailable');};assert.equal(await a.engine.flush('user-a'),false);assert.equal(saved,false);assert.equal(cloud.revision,1);assert.equal(a.read().checks.h1['2026-09-10'],true);
+});
+test('account cancellation during async recovery cannot finish linking or export previous records',async()=>{
+ const cloud={state:base(),revision:1},a=setup(base(),cloud);let release;a.config.data.protect=()=>new Promise(resolve=>{release=resolve;});
+ const linking=a.engine.link('user-a',true);a.engine.cancel();release();await assert.rejects(linking,/conta mudou/);assert.equal(a.engine.meta.owner,undefined);
+ a.config.data.protect=()=>{};a.engine.link('user-a',true);a.config.data.protect=async()=>{a.engine.cancel();};a.edit(s=>s.checks.h1['2026-09-10']=true);
+ assert.equal(await a.engine.flush('user-a'),false);assert.equal(cloud.revision,1);assert.equal(cloud.state.checks.h1['2026-09-10'],undefined);
+});
 test('large sync baseline survives quota, reload and legacy metadata without changing recovery JSON',async()=>{
  const large=base();large.future.records=Array.from({length:2600},(_,n)=>({id:'entry-'+n,description:'Registro fictício repetido para testar preservação e armazenamento. '.repeat(8)}));
  const cloud={state:large,revision:2},a=setup(base(),cloud);a.engine.link('user-a',true);const recovery=a.store.get('constancia.recovery.before-account-link');
