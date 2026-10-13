@@ -1,0 +1,140 @@
+# Constância — relatório do módulo To-Do
+
+Atualizado em 13/10/2026. Implementação sobre o projeto existente, base 8123540 (branco gelo e Pogonia). A entrega foi desenvolvida e validada localmente; o banco e o backend foram implantados no Supabase. O proprietário concluiu login, vinculação e consentimento. A importação real foi observada; a validação de ida e volta em agenda de teste foi concluída. O frontend foi publicado no GitHub Pages, com recursos/cache v34 e conferência de igualdade dos arquivos principais.
+
+## Resultado implementado
+
+- Quarta aba To-Do, responsiva, com Hoje, Pendências, Amanhã, Próximos por data e Histórico.
+- Checkbox com conclusão e desfazer imediatos, timestamp real e persistência; sem modal para concluir.
+- Painel de detalhes com cinco estados em controle horizontal. Em telas estreitas os controles quebram em duas linhas, mantendo áreas de toque.
+- Cancelamento com motivo opcional, timestamp, planejamento original e histórico. Não é conclusão e não entra na base da taxa. Evento Google permanece com prefixo `[Cancelado]`, sem exclusão automática.
+- Adiamento exige nova data/horário, preserva a primeira programação e audita cada alteração. Evento conta uma vez; remarcações contam ações separadamente.
+- Métricas de planejados, concluídos, pendentes, cancelados, adiados, execução, acumulados e remarcações. Adiar para o futuro não retira o planejamento original do denominador.
+- Eventos de dia inteiro sem horário artificial, dias múltiplos, fuso IANA e estado independente por ocorrência recorrente.
+- Origem, calendário/evento/ocorrência, execução, outbox, conflito e histórico persistidos no estado existente do Constância.
+- Sincronização bidirecional com paginação, tokens incrementais, reconciliação, IDs determinísticos para exportação e ETags para conflitos. Respostas perdidas e repetição de chamadas não criam novo evento.
+- Exclusão externa conserva a auditoria e se distingue de cancelamento operacional. Agendas somente leitura não recebem alterações.
+- OAuth de servidor com PKCE e estado de uso único de dez minutos; refresh, expiração e reconexão. Tokens cifrados com AES-GCM; credenciais exclusivas do backend.
+
+## Arquivos
+
+Criados:
+
+- `todo-core.js`: modelo, transições, datas, indicadores, fila e importação compartilhados pelo frontend/backend.
+- `todo.js`, `todo.css`: interface e coordenação da agenda.
+- `navigation.js`: navegação unificada das quatro áreas.
+- `supabase/functions/calendar/index.ts`: HTTP, autorização, OAuth e credenciais.
+- `supabase/functions/calendar/service.mjs`: sincronização e conflitos, com dependências testáveis.
+- `supabase/functions/calendar/deno.json`, `.env.example`, `supabase/config.toml`: configuração e modelo sem valores secretos.
+- `supabase/migrations/20261013180824_todo_calendar_credentials.sql`: tabelas privadas aditivas.
+- `todo.test.cjs`, `todo-dom.test.cjs`, `calendar-service.test.cjs`, `calendar-auth.test.cjs`, `calendar-database.test.cjs`: testes do módulo e seus limites.
+- `docs/TODO-DIAGNOSTICO.md`, `docs/TODO-GOOGLE-CONFIGURACAO.md`, este relatório.
+
+Modificados:
+
+- `index.html`, `app.js`, `core.js`, `sw.js`: carregamento, aba, migração aditiva e recursos/cache v34.
+- `body.js`, `training.js`: uso da navegação compartilhada; áreas existentes preservadas.
+- `persistence-core.js`, `sync-core.js`, `sync.js`: preservação e reconciliação de itens/histórico, integração com a autenticação já existente.
+- `body-decimal.test.cjs`, `training-dom.test.cjs`: regressões adaptadas à inicialização das quatro áreas.
+- `package.json`, `package-lock.json`: versão 1.5.0, PostgreSQL isolado PGlite 0.5.9 para teste de RLS e LZ-String 1.5.0 para metadados grandes.
+- `sdk-entry.js`, `cloud-sdk.js`, `sync-engine.js`, `sync.test.cjs`: compressão sem perdas da base local de sincronização, leitura do formato anterior e teste com quota.
+- `.gitignore`, `AGENTS.md`, `README.md`: regras de manutenção, configuração e documentação.
+
+## Banco de dados e preservação
+
+Migração remota aplicada: `20261013180824`, `todo_calendar_credentials`.
+
+| Recurso | Finalidade | Acesso |
+| --- | --- | --- |
+| `constancia_calendar_connections` | Caixa cifrada de tokens, cursores, reconexão e lease por usuário | Somente backend `service_role` |
+| `constancia_calendar_oauth` | Hash do estado, verificador cifrado, usuário, retorno e expiração | Somente backend `service_role` |
+| `constancia_states.state.todo` | Itens, execução e histórico do To-Do | Autenticação/RLS e RPC existentes |
+
+Nenhuma tabela anterior foi removida ou substituída. Não houve migração de hábitos, treinos ou evolução corporal para outra tecnologia. O módulo grava pelo RPC `constancia_save`, mantendo revisão otimista e recuperação existentes.
+
+Localmente, `constancia.recovery.before-todo-v5` protege os bytes do JSON anterior antes da primeira gravação estrutural. Backups antigos sem To-Do não apagam o To-Do atual. IDs, campos desconhecidos e dados de áreas futuras são preservados; falha de recuperação ou estado inválido bloqueiam novas gravações. Nenhum registro pessoal ou de teste foi inserido no Git público.
+
+## Integrações efetivamente configuradas
+
+- Supabase existente: `ahsnobrlcyaefdanjdsm`, organização Petters.
+- Função `calendar` implantada e ativa, versão 10. Verificação HTTP própria de usuário em todo POST; callback usa estado expirável de uso único. `verify_jwt=false` é necessário para o callback e não elimina a autenticação dos demais caminhos.
+- Google Cloud: `constancia-agenda`, nome Constancia Agenda; API Google Calendar ativada.
+- Consentimento: Constância, External/Testing, um usuário de teste (proprietário).
+- Cliente OAuth: Constância Web, aplicativo web, um único callback `https://ahsnobrlcyaefdanjdsm.supabase.co/functions/v1/calendar/callback`.
+- Escopos: `calendar.events` e `calendar.calendarlist.readonly`, sem Tasks/Gmail/Drive.
+- Secrets `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_TOKEN_KEY` salvos e conferidos por digest, sem exposição dos valores. Chave de cifragem aleatória de 32 bytes.
+- Login do painel via GitHub autorizado separadamente pelo proprietário, com leitura de e-mails somente para o login Supabase.
+
+O consentimento da Agenda foi concedido pelo próprio proprietário na prévia interna. Nenhum compromisso real foi alterado para testes.
+
+## Testes e evidências
+
+`npm test`: **59 testes, 59 aprovados, zero falhas**, em 13/10/2026.
+
+| Área | Validação |
+| --- | --- |
+| Funcionalidades anteriores | Peso `70,50`, dados ausentes, hábitos, treinos, edição, catálogos, backups e sincronização entre aparelhos |
+| Núcleo To-Do | Cinco estados, timestamp, desfazer, cancelamento, indicadores, múltiplos adiamentos, timezone, dia inteiro, ocorrências e exclusão externa |
+| Interface DOM | Checkbox sem modal, painel oculto, motivo, seletor de adiamento, teclado, recarga, migração idempotente, proteção contra aba desatualizada |
+| Google simulado | Importação/exportação, paginação, repetição idempotente, respostas perdidas, 409/410/412, leitura, alteração durante envio, reconexão para outra conta, lease |
+| Autenticação simulada | JWT inválido, Origin não permitido, PKCE, cifragem, repetição de callback, refresh e desconexão |
+| Banco PostgreSQL isolado | RLS e privilégios: anon/authenticated não leem nem escrevem tokens; somente service_role |
+| Supabase real | Migração aplicada, RLS/privilégios conferidos; POST sem conta retorna 401 e Origin desconhecida retorna 403 |
+| Navegador | Chrome desktop e viewport reduzida: criação fictícia, conclusão, recarga, cancelamento por terceiro, histórico e adiamento; cinco estados visíveis em duas linhas; sem overflow horizontal |
+
+O teste visual usou origem separada `127.0.0.1:8772`, com um compromisso fictício e sem conexão Google. A origem principal `127.0.0.1:8771` conserva o histórico do usuário. Viewport reduzida no Chrome não equivale a teste em iPhone físico/Safari.
+
+`git diff --check` sem erros. Capturas de tela ficam fora do repositório público. Os testes simulados não são evidência de uma conexão real Google concluída.
+
+## Limites e pendências de aceite
+
+1. Login, vinculação do histórico e consentimento Google foram concluídos pelo proprietário. A importação real foi observada.
+2. Importação, exportação, conclusão/desfazer, cancelamento, adiamento, edição externa e alteração por ocorrência foram conferidos nos dois lados na agenda de testes autorizada. A remoção de uma cópia de convite foi refletida como exclusão externa; exclusão permanente de eventos não foi executada.
+3. O frontend v34 foi publicado em https://petersfilms.github.io/constancia/#todo. A publicação inclui o tema branco gelo e o módulo To-Do. index.html, todo-core.js, todo.js e sw.js responderam HTTP 200 e coincidiram byte a byte com a versão local. O envio foi feito pela sessão autorizada do GitHub no Chrome; o Git local não tinha autenticação de escrita.
+4. Atualizações automáticas ocorrem ao abrir/retornar e a cada 60 segundos com o aplicativo visível. Não há atualização contínua enquanto o aplicativo está fechado.
+5. Eventos comuns entram sem limite de data; recorrências são expandidas em ±366 dias da data consultada. Navegar recompõe a janela; não há expansão de série infinita.
+6. O Google mantém a referência de dados confirmados. Alteração simultânea conserva a proposta local para resolução explícita; não há sobrescrita automática forçada.
+7. OAuth permanece em Testing. Para uso duradouro ou por mais pessoas, seguir publicação/verificação do Google e suas regras de expiração de refresh token.
+8. O histórico JSON não é compactado. O limite de tamanho do mecanismo anterior continua valendo e falhas de gravação não apagam o estado.
+9. Não houve validação em iPhone físico. As alterações de teste foram executadas na agenda separada, com consentimento do proprietário.
+
+O Advisor Supabase informa RLS sem policies nas duas tabelas privadas: é intencional, pois clientes não devem acessá-las. Também já existia, antes desta migração, o aviso de proteção contra senhas vazadas desativada; a configuração de autenticação anterior não foi alterada. [Referência da proteção de senha](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
+
+## Critério para considerar concluído
+
+A implementação e os testes isolados passaram. Os critérios funcionais foram exercitados localmente, inclusive sincronização real. A disponibilidade no GitHub Pages foi conferida por HTTP e comparação dos arquivos publicados. Os testes de ida e volta com a conta do proprietário ocorreram na prévia local; o teste interativo autenticado no domínio público pode ser realizado pelo proprietário após abrir a versão atualizada.
+
+## Atualização após consentimento do proprietário
+
+O proprietário entrou, vinculou o histórico e concluiu o consentimento Google na prévia interna. A importação real foi observada, assim como conclusões já registradas pelo proprietário. Não foi necessário repetir OAuth. A primeira leitura encontrou limite de CPU na função; foi implantada a reutilização de formatadores e validações de fuso (versão 10).
+
+Conforme nova instrução, o calendário de feriados do Google deixa de ser importado e seus itens anteriores ficam ocultos das visualizações/indicadores, sem apagamento. Pendências e contadores de pendentes/acumulados consideram os últimos 90 dias dentro do ano corrente. Balanço e taxa de execução continuam anuais, com registros antigos conservados. A base de sincronização grande usa compressão sem perdas em envelope de metadados v2; chave e JSON principal permanecem. Adicionados testes de volume, quota, recarga, metadados legados, feriados e recorte anual. Total: 59 testes aprovados. A validação bidirecional foi concluída na agenda autorizada. O frontend foi publicado no GitHub Pages, com recursos/cache v34 e conferência de igualdade dos arquivos principais.
+
+A função agora processa três páginas/operações por chamada, com páginas de até 250 eventos. Cursores intermediários guardam fase, página e agenda atual, e a retomada prossegue para agendas seguintes e para a fila de exportação. Não reinicia a primeira agenda a cada chamada. A interface continua em intervalos de três segundos enquanto a carga inicial estiver parcial; após concluir, retorna ao intervalo de um minuto. Teste de retomada paginada com múltiplas agendas e exportação aprovado.
+
+## Validação real concluída
+
+O proprietário autorizou criar a agenda privada **Constância — testes**, fuso America/Sao_Paulo. Foram usados somente registros fictícios claramente identificados. Nenhum compromisso pessoal anterior foi editado pelo agente.
+
+- Evento com horário e evento de dia inteiro criados no Google apareceram no To-Do.
+- Checkbox concluiu diretamente, sem modal, e o horário real permaneceu após recarga. Desfazer preservou auditoria.
+- Cancelamento por terceiro ficou no histórico, saiu das pendências e apareceu no Google como `[Cancelado]`, com o mesmo ID e horário.
+- Adiamento mudou o mesmo evento para o dia seguinte; o Google confirmou a nova data e o painel manteve a programação original e um reagendamento.
+- Um compromisso criado pela interface do Constância gerou exatamente um evento no Google. Releituras mantiveram o mesmo ID.
+- Edição posterior de título/horário no Google apareceu na interface, preservando a origem Constância e sem duplicação.
+- Cancelar uma ocorrência de uma série diária não alterou a ocorrência seguinte; ambas foram relidas no Google para conferir.
+- Uma cópia de convite removida do lado Google passou a “Excluído na agenda”, com histórico conservado. Não foi usado DELETE permanente para testar.
+- Feriados sumiram das listas/indicadores, e Pendências passou a mostrar o ano corrente. O histórico anterior permanece armazenado.
+- Convites presentes em duas agendas passaram a contar uma vez por iCalUID e ocorrência. A ação de execução mais recente prevalece na apresentação, sem remover as cópias ou auditorias. Eventos distintos com o mesmo título continuam distintos. Ocorrências distintas continuam independentes. A identidade dos registros anteriores foi enriquecida em uma leitura paginada única.
+
+Os compromissos fictícios foram cancelados ao encerrar a validação, para não deixarem pendências ativas na rotina. A agenda de testes e os históricos foram preservados. Cancelamentos de teste permanecem identificados nos registros e podem aparecer no contador de cancelados, mas não entram na taxa de execução.
+
+Capturas de comprovação foram salvas fora do repositório: conclusão com horário real, adiamento com planejamento original e edição externa recebida. A função final é a versão 10; frontend local usa recursos/cache v34. Testes automatizados finais: **59 aprovados, zero falhas**.
+
+Revisões Google que alteram somente metadados internos (por exemplo, a revisão de outra ocorrência) atualizam a base ETag sem criar conflito quando título, descrição, datas e cancelamento confirmado permanecem iguais. A operação pendente conserva a programação confirmada que lhe deu origem. Mudanças reais nesses campos continuam protegidas como conflito, e o envio usa If-Match. Teste de revisão interna versus edição real aprovado.
+
+## Recorte de 90 dias antes da publicação
+
+Por solicitação do proprietário, compromissos com mais de 90 dias saem da lista e dos contadores de pendências. O dia exato do limite permanece incluído; a janela avança diariamente no fuso configurado e nunca inclui o ano anterior. Registros, estados, histórico, fila de sincronização e eventos Google não são apagados ou alterados por esse filtro. Eventos de vários dias que ainda estão acontecendo permanecem em Hoje. O balanço anual e seu denominador são preservados, para que ocultar pendências antigas não aumente artificialmente a taxa de execução.
+
+Foram adicionados testes de fronteira 90/91 dias, avanço diário, ano, fuso, eventos em andamento e preservação byte a byte do estado. Total final: 59 testes aprovados, zero falhas. Recursos/cache frontend v34.
