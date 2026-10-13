@@ -26,6 +26,12 @@ test('account cancellation during async recovery cannot finish linking or export
  a.config.data.protect=()=>{};a.engine.link('user-a',true);a.config.data.protect=async()=>{a.engine.cancel();};a.edit(s=>s.checks.h1['2026-09-10']=true);
  assert.equal(await a.engine.flush('user-a'),false);assert.equal(cloud.revision,1);assert.equal(cloud.state.checks.h1['2026-09-10'],undefined);
 });
+test('simultaneous sync requests for the same account await one result instead of reporting a false failure',async()=>{
+ const cloud={state:base(),revision:1},a=setup(base(),cloud);a.engine.link('user-a',true);let release,reads=0;const read=a.engine.readCloud;
+ a.engine.readCloud=async(...args)=>{reads++;await new Promise(resolve=>{release=resolve;});return read(...args);};
+ const first=a.engine.flush('user-a'),second=a.engine.flush('user-a');assert.equal(first,second);assert.equal(await a.engine.flush('user-b'),false);release();
+ assert.deepEqual(await Promise.all([first,second]),[true,true]);assert.equal(reads,1);assert.deepEqual(a.read(),cloud.state);
+});
 test('large sync baseline survives quota, reload and legacy metadata without changing recovery JSON',async()=>{
  const large=base();large.future.records=Array.from({length:2600},(_,n)=>({id:'entry-'+n,description:'Registro fictício repetido para testar preservação e armazenamento. '.repeat(8)}));
  const cloud={state:large,revision:2},a=setup(base(),cloud);a.engine.link('user-a',true);const recovery=a.store.get('constancia.recovery.before-account-link');

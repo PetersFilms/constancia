@@ -9,7 +9,11 @@
   owned(user){return !!user&&this.meta.owner===user;}
   link(user,pristine){if(this.meta.owner&&this.meta.owner!==user)throw Error('Entre na conta original deste histórico.');const baseline=this.data.read(),gen=this.generation,finish=()=>{if(gen!==this.generation||this.meta.owner&&this.meta.owner!==user)throw Error('A conta mudou durante a vinculação.');this.persist({...this.meta,owner:user,firstMode:pristine?'cloud':'import',joinBaseline:baseline});};const protection=this.data.protect('constancia.recovery.before-account-link',baseline);return protection?.then?protection.then(finish):finish();}
   cancel(){this.generation++;this.conflict=null;}
-  async flush(user,preference){
+  flush(user,preference){
+   if(this.running)return this.flushingUser===user&&!preference?this.inflight:Promise.resolve(false);
+   this.flushingUser=user;return this.inflight=this.run(user,preference);
+  }
+  async run(user,preference){
    if(this.running||!this.owned(user)||this.data.blocked())return false;
    this.running=true;const gen=this.generation;let done=false;
    try{

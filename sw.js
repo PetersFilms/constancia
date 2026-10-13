@@ -1,6 +1,6 @@
 'use strict';
-const CACHE='constancia-shell-36';
-const FILES=['./','index.html','style.css?v=36','theme.css?v=36','todo.css?v=36','todo-core.js?v=36','todo.js?v=36','navigation.js?v=36','pogonia-regular.woff2','pogonia-medium.woff2','pogonia-semibold.woff2','mobile.css?v=36','persistence-core.js?v=36','body-core.js?v=36','training-core.js?v=36','core.js?v=36','sync-core.js?v=36','recovery-store.js?v=36','app.js?v=36','body.js?v=36','training.js?v=36','cloud-sdk.js?v=36','sync-engine.js?v=36','sync.js?v=36','mobile.js?v=36','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
+const CACHE='constancia-shell-37';
+const FILES=['./','index.html','style.css?v=37','theme.css?v=37','todo.css?v=37','todo-core.js?v=37','todo.js?v=37','navigation.js?v=37','pogonia-regular.woff2','pogonia-medium.woff2','pogonia-semibold.woff2','mobile.css?v=37','persistence-core.js?v=37','body-core.js?v=37','training-core.js?v=37','core.js?v=37','sync-core.js?v=37','recovery-store.js?v=37','app.js?v=37','body.js?v=37','training.js?v=37','cloud-sdk.js?v=37','sync-engine.js?v=37','sync.js?v=37','mobile.js?v=37','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES))));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{for(const name of await caches.keys())if(name.startsWith('constancia-shell-')&&name!==CACHE)await caches.delete(name);await self.clients.claim();})()));
 self.addEventListener('message',event=>{if(event.data==='ACTIVATE_UPDATE')self.skipWaiting();});
