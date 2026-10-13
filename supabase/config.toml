@@ -1,0 +1,5 @@
+project_id = "constancia"
+
+[functions.calendar]
+# The callback has no Supabase JWT. POST routes validate the JWT with Auth first.
+verify_jwt = false
