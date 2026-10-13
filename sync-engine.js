@@ -1,10 +1,11 @@
 (function(root){
  'use strict';
  const C=root.ConstanciaSyncCore||(typeof require==='function'?require('./sync-core.js'):null);
+ const codec=root.ConstanciaCloud||(typeof require==='function'?require('lz-string'):null);
  class SyncEngine{
   constructor({store,data,readCloud,saveCloud,status}){Object.assign(this,{store,data,readCloud,saveCloud,status});this.key='constancia.sync.v1';this.running=false;this.conflict=null;this.generation=0;this.meta=this.load();}
-  load(){const raw=this.store.getItem(this.key);if(!raw)return {version:1};const value=JSON.parse(raw);if(value.version!==1)throw Error('Versão de sincronização incompatível. Atualize o aplicativo.');return value;}
-  persist(meta){this.store.setItem(this.key,JSON.stringify(meta));this.meta=meta;}
+  load(){const raw=this.store.getItem(this.key);if(!raw)return {version:1};let value=JSON.parse(raw);if(value.version===2&&value.codec==='lz-utf16'&&typeof value.payload==='string'&&codec?.decompressFromUTF16){const decoded=codec.decompressFromUTF16(value.payload);if(!decoded)throw Error('Configuração de sincronização inválida; histórico preservado.');value=JSON.parse(decoded);}if(value.version!==1)throw Error('Versão de sincronização incompatível. Atualize o aplicativo.');return value;}
+  persist(meta){const raw=JSON.stringify(meta),stored=raw.length>80000&&codec?.compressToUTF16?JSON.stringify({version:2,codec:'lz-utf16',payload:codec.compressToUTF16(raw)}):raw;this.store.setItem(this.key,stored);this.meta=meta;}
   owned(user){return !!user&&this.meta.owner===user;}
   link(user,pristine){if(this.meta.owner&&this.meta.owner!==user)throw Error('Entre na conta original deste histórico.');this.data.protect('constancia.recovery.before-account-link',this.data.read());this.persist({...this.meta,owner:user,firstMode:pristine?'cloud':'import',joinBaseline:this.data.read()});}
   cancel(){this.generation++;this.conflict=null;}
@@ -42,7 +43,7 @@
      if(C.equal(this.data.read(),saved.state)){done=true;this.status('Sincronizado · Seu histórico está atualizado','ok');return true;}
     }
     this.status('Salvo neste aparelho · Nova tentativa em breve');return false;
-   }catch(error){this.status(navigatorOffline()?'Salvo neste aparelho · Aguardando internet':'Salvo neste aparelho · Sincronização pendente','pending',error);return false;}
+   }catch(error){this.status(error.name==='QuotaExceededError'?'Salvo neste aparelho · Espaço insuficiente para sincronizar':navigatorOffline()?'Salvo neste aparelho · Aguardando internet':'Salvo neste aparelho · Sincronização pendente','pending',error);return false;}
    finally{this.running=false;this.onComplete?.(done);}
   }
  }

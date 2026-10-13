@@ -1,5 +1,5 @@
 (()=>{
- const B=Body,fmt=(v,n=2)=>v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:n}),date=d=>format(d,{day:'2-digit',month:'2-digit',year:'numeric'}),colors=['#E5E8E7','#9BBCCF','#A2BFBA','#C5B7CC'];
+ const B=Body,fmt=(v,n=2)=>v==null?'—':v.toLocaleString('pt-BR',{maximumFractionDigits:n}),date=d=>format(d,{day:'2-digit',month:'2-digit',year:'numeric'}),colors=['#4A5C6A','#6B7D8B','#536F6B','#83718B'];
  let bodyEditing=null,weightEditing=null,span='all',group='trunk';
  const groups={trunk:[['waist','Cintura'],['abdomen','Abdômen'],['hip','Quadril'],['chest','Peitoral']],arms:[['armL','Relaxado E'],['armR','Relaxado D'],['flexL','Contraído E'],['flexR','Contraído D']],legs:[['thighL','Coxa E'],['thighR','Coxa D'],['calfL','Panturrilha E'],['calfR','Panturrilha D']],other:[['shoulder','Ombro'],['neck','Pescoço'],['forearmL','Antebraço E'],['forearmR','Antebraço D']]};
  const records=()=>[...(state.body?.records||[])].sort((a,b)=>a.date.localeCompare(b.date));
@@ -7,9 +7,9 @@
  const vals=rows.flatMap(r=>series.map(([k])=>B.value(r,k))).filter(v=>v!=null);if(!vals.length)return '<div class="body-empty">Nenhuma medida disponível neste período.</div>';
  let lo=Math.min(...vals,...(band||[])),hi=Math.max(...vals,...(band||[])),pad=Math.max((hi-lo)*.22,unit==='razão'?.04:unit==='kg'?2:2);lo=Math.max(0,lo-pad);hi+=pad;
  const left=46,right=486,top=17,bottom=174,w=right-left,h=bottom-top,minT=Date.parse(rows[0].date),maxT=Date.parse(rows.at(-1).date),x=r=>maxT===minT?(left+right)/2:left+(Date.parse(r.date)-minT)/(maxT-minT)*w,y=v=>bottom-(v-lo)/(hi-lo)*h;
- let svg=band?`<rect x="${left}" y="${y(band[1])}" width="${w}" height="${y(band[0])-y(band[1])}" fill="#11212D"/>`:'';
- svg+=[0,.5,1].map(t=>{let v=lo+(hi-lo)*t;return `<line x1="${left}" x2="${right}" y1="${y(v)}" y2="${y(v)}" stroke="#4A5C6A" stroke-dasharray="3 4"/><text x="${left-8}" y="${y(v)+4}" text-anchor="end">${fmt(v,unit==='razão'?2:1)}</text>`}).join('');
- series.forEach(([k,label],i)=>{let prev=null;rows.forEach(r=>{const v=B.value(r,k);if(v==null){prev=null;return}if(prev&&(!composition||prev.method===r.method))svg+=`<line x1="${x(prev)}" y1="${y(B.value(prev,k))}" x2="${x(r)}" y2="${y(v)}" stroke="${colors[i]}" stroke-width="2"/>`;svg+=`<circle cx="${x(r)}" cy="${y(v)}" r="4.5" fill="${colors[i]}" stroke="#253745" stroke-width="2"><title>${date(r.date)} · ${esc(label)}: ${fmt(v)} ${unit}</title></circle>`;prev=r})});
+ let svg=band?`<rect x="${left}" y="${y(band[1])}" width="${w}" height="${y(band[0])-y(band[1])}" fill="#E8EEF0"/>`:'';
+ svg+=[0,.5,1].map(t=>{let v=lo+(hi-lo)*t;return `<line x1="${left}" x2="${right}" y1="${y(v)}" y2="${y(v)}" stroke="#DCE3E6" stroke-dasharray="3 4"/><text x="${left-8}" y="${y(v)+4}" text-anchor="end">${fmt(v,unit==='razão'?2:1)}</text>`}).join('');
+ series.forEach(([k,label],i)=>{let prev=null;rows.forEach(r=>{const v=B.value(r,k);if(v==null){prev=null;return}if(prev&&(!composition||prev.method===r.method))svg+=`<line x1="${x(prev)}" y1="${y(B.value(prev,k))}" x2="${x(r)}" y2="${y(v)}" stroke="${colors[i]}" stroke-width="2"/>`;svg+=`<circle cx="${x(r)}" cy="${y(v)}" r="4.5" fill="${colors[i]}" stroke="#FCFDFD" stroke-width="2"><title>${date(r.date)} · ${esc(label)}: ${fmt(v)} ${unit}</title></circle>`;prev=r})});
  svg+=`<text x="${maxT===minT?(left+right)/2:left}" y="204" text-anchor="${maxT===minT?'middle':'start'}">${date(rows[0].date)}</text>`;if(maxT!==minT)svg+=`<text x="${right}" y="204" text-anchor="end">${date(rows.at(-1).date)}</text>`;
  const desc=series.map(([k,label])=>{const valid=rows.filter(r=>B.value(r,k)!=null);return valid.length?`${label}: ${fmt(B.value(valid.at(-1),k))} ${unit} em ${date(valid.at(-1).date)}`:`${label}: não informado`}).join('; ');
  return `<svg class="body-chart" viewBox="0 0 510 216" role="img" aria-label="${esc(desc)}"><title>${esc(desc)}</title>${svg}</svg><div class="body-legend">${series.map(([k,l],i)=>`<span><i style="background:${colors[i]}"></i>${esc(l)} <b>${fmt(B.value(rows.at(-1),k))}</b></span>`).join('')}</div>`;
@@ -47,6 +47,5 @@
  const old=records().find(r=>r.id===bodyEditing),r={...old,id:bodyEditing||crypto.randomUUID(),date:d,method:$('bodyMethod').value.trim(),source:$('bodySource').value.trim(),notes:$('bodyNotes').value.trim()};B.fields.forEach(([k])=>r[k]=$('measure-'+k).value===''?null:B.parseDecimal($('measure-'+k).value));try{B.validate({version:1,records:[r]})}catch(err){$('bodyFormError').textContent=err.message;return}if(update(s=>{s.body??={version:1,records:[]};const i=s.body.records.findIndex(x=>x.id===r.id);if(i<0)s.body.records.push(r);else s.body.records[i]=r})){dialog.close();toast('Avaliação salva. Gráficos atualizados.')}};
  $('deleteBody').onclick=()=>{if(confirm('Excluir esta avaliação corporal? Os hábitos serão preservados.'))if(update(s=>{s.body.records=s.body.records.filter(r=>r.id!==bodyEditing)})){dialog.close();toast('Avaliação excluída.')}};
  document.addEventListener('click',e=>{const b=e.target.closest('[data-body-edit]');if(b)openBody(b.dataset.bodyEdit)});
- function showTab(body){$('habitsPanel').hidden=body;$('bodyPanel').hidden=!body;$('habitsTab').setAttribute('aria-pressed',String(!body));$('bodyTab').setAttribute('aria-pressed',String(body));history.replaceState(null,'',body?'#corpo':'#habitos');if(body)renderBody()}
- $('habitsTab').onclick=()=>showTab(false);$('bodyTab').onclick=()=>showTab(true);window.renderBody=renderBody;renderBody();if(location.hash!=='#treinos')showTab(location.hash==='#corpo');
+ window.renderBody=renderBody;renderBody();
 })();

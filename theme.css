@@ -1,70 +1,49 @@
-/* Constância · Pogonia, azul profundo e cinza azulado. */
+/* Constância · Pogonia, branco gelo e cinza azulado. */
 @font-face{font-family:Pogonia;src:url('pogonia-regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
 @font-face{font-family:Pogonia;src:url('pogonia-medium.woff2') format('woff2');font-style:normal;font-weight:500;font-display:swap}
 @font-face{font-family:Pogonia;src:url('pogonia-semibold.woff2') format('woff2');font-style:normal;font-weight:600 900;font-display:swap}
-:root{--bg:#4A5C6A;--paper:#253745;--ink:#E5E8E7;--muted:#B8C3C4;--line:#4A5C6A;--green:#CCD0CF;--pale:#11212D;color-scheme:dark;--font:"Pogonia",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{--bg:#F3F6F7;--paper:#FCFDFD;--ink:#253745;--muted:#5B6C76;--line:#DCE3E6;--green:#4A5C6A;--pale:#E8EEF0;color-scheme:light;--font:"Pogonia",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{min-height:100dvh;background:var(--bg);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font-family:var(--font)}
 h1,h2,h3,.brand,.mark,.stat strong,.workout-card strong{font-family:var(--font);font-feature-settings:"kern";}
 h1{font-size:46px;font-weight:500;line-height:1.12;letter-spacing:-.045em;max-width:760px}
 h2{font-size:20px;font-weight:500;letter-spacing:-.025em}
 .brand{font-size:25px;font-weight:600;letter-spacing:-.04em;gap:10px}
-.mark{font-size:25px;font-weight:600;line-height:1;padding-bottom:2px;border-radius:50%;color:#11212D}
+.mark{font-size:25px;font-weight:600;line-height:1;padding-bottom:2px;border-radius:50%;color:#FCFDFD}
 .personal{font-size:10px;letter-spacing:.14em}.eyebrow{font-size:10px;letter-spacing:.14em;font-weight:500}
 header{height:100px}.intro{padding:44px 0 32px}.intro .muted{font-size:14px;line-height:1.7}
-.primary{color:#11212D;background:var(--green);border-color:var(--green);border-radius:999px;font-size:13px;font-weight:500;padding:13px 22px;min-height:44px}
-.primary:hover{background:#E5E8E7;border-color:#E5E8E7}
-.card,.stat{background:var(--paper);border-color:var(--line);box-shadow:0 8px 26px #02090D18;border-radius:18px}
+.primary{color:#FCFDFD;background:var(--green);border-color:var(--green);border-radius:999px;font-size:13px;font-weight:500;padding:13px 22px;min-height:44px}
+.primary:hover{background:#253745;border-color:#253745}
+.card,.stat{background:var(--paper);border-color:var(--line);box-shadow:0 8px 26px #11212D08;border-radius:18px}
 .card{padding:28px}.stat{padding:23px 25px}.stat strong{font-size:34px;font-weight:500;line-height:1.25;margin:10px 0}.stat .label{font-size:12px}.stat small{font-size:11px;line-height:1.6}
-.section-top{gap:16px}.habit-info strong{font-size:15px;font-weight:500}.habit-info p{font-size:12px;line-height:1.6}.habit-row{min-height:96px}.check{border-color:#9BA8AB}.check[aria-pressed=true]{color:#11212D}
+.section-top{gap:16px}.habit-info strong{font-size:15px;font-weight:500}.habit-info p{font-size:12px;line-height:1.6}.habit-row{min-height:96px}.check{border-color:#8C9CA5}.check[aria-pressed=true]{color:#FCFDFD}
 .page-tabs button{font-size:14px;font-weight:400;letter-spacing:-.015em}.page-tabs button[aria-pressed=true]{font-weight:500}
 .quiet{color:var(--muted)}.quiet:hover{color:var(--ink)}.muted,.body-caption,.chart-note,.training-insights p{color:var(--muted)}
 .chart-head strong{font-weight:500;font-size:42px}.body-chart text,.training-chart text{font-family:var(--font);fill:var(--muted)}
-.day{border-radius:7px;font-size:12px}.day[data-level='3'],.day[data-level='4']{color:#11212D}.day.selected{outline-color:var(--ink)}
-input,select,textarea{background:var(--paper);color:var(--ink);border-color:var(--line);accent-color:var(--ink)}input::placeholder,textarea::placeholder{color:#B8C3C4;opacity:1}
-dialog{background:var(--paper);color:var(--ink);border-color:var(--line);box-shadow:0 20px 80px #00000050;border-radius:20px}dialog::backdrop{background:#02090DB3;backdrop-filter:blur(3px)}
-.weekdays input:checked+span{background:var(--ink);color:#11212D}
+.day{border-radius:7px;font-size:12px}.day[data-level='3'],.day[data-level='4']{color:#FCFDFD}.day.selected{outline-color:var(--ink)}
+input,select,textarea{background:var(--paper);color:var(--ink);border-color:var(--line);accent-color:var(--ink)}input::placeholder,textarea::placeholder{color:#5B6C76;opacity:1}
+dialog{background:var(--paper);color:var(--ink);border-color:var(--line);box-shadow:0 20px 80px #11212D18;border-radius:20px}dialog::backdrop{background:#11212D38;backdrop-filter:blur(3px)}
+.weekdays input:checked+span{background:var(--green);color:#FCFDFD}
 .workout-card{background:var(--paper);border-color:var(--line);border-radius:16px}.workout-card strong,.session-head h3{font-weight:500;letter-spacing:-.03em}.workout-card[aria-pressed=true]{box-shadow:none;background:var(--pale);border-color:var(--ink)}
-.body-insight,.training-guide{background:var(--pale);border-left:2px solid var(--ink);border-radius:0 12px 12px 0}.training-guide p{color:#B8C3C4}.exercise-summary>div,.exercise-editor{background:#11212D}.session-meta span{color:var(--ink);background:var(--pale)}
-.account-button{background:var(--pale);color:var(--ink);border-radius:999px}.update-banner{background:var(--pale);border-color:var(--line)}.sync-status-button{font-family:var(--font)}#syncStatus:before{background:#B8C3C4}#syncStatus[data-kind=ok]:before{background:var(--ink)}
-#toast{background:var(--ink);color:#11212D}footer{color:var(--muted);font-size:11px}.body-legend b,.pr-list b{font-weight:500}
+.body-insight,.training-guide{background:var(--pale);border-left:2px solid var(--ink);border-radius:0 12px 12px 0}.training-guide p{color:#5B6C76}.exercise-summary>div,.exercise-editor{background:#E8EEF0}.session-meta span{color:var(--ink);background:var(--pale)}
+.account-button{background:var(--pale);color:var(--ink);border-radius:999px}.update-banner{background:var(--pale);border-color:var(--line)}.sync-status-button{font-family:var(--font)}#syncStatus:before{background:#5B6C76}#syncStatus[data-kind=ok]:before{background:var(--ink)}
+#toast{background:var(--ink);color:#FCFDFD}footer{color:var(--muted);font-size:11px}.body-legend b,.pr-list b{font-weight:500}
 @media(max-width:850px){h1{font-size:39px}.card{padding:24px}}
 @media(max-width:600px){
  header{height:auto;min-height:80px}.brand{font-size:22px}.mark{font-size:24px}.intro{padding:26px 0 24px}.intro h1,#bodyPanel h1{font-size:36px;letter-spacing:-.045em;max-width:none;line-height:1.12}.intro .muted{font-size:13px}.intro .primary{font-size:13px;padding:12px 20px}.eyebrow{font-size:10px}h2{font-size:19px}.card{padding:22px 17px;border-radius:16px}.stat{padding:17px 13px;border-radius:14px}.stat strong{font-size:29px}.stat small{font-size:10px}.stat .label{font-size:11px}.stats{gap:8px}.body-stats .stat,.training-stats .stat{padding:17px 14px}.body-stats .stat strong,.training-stats .stat strong{font-size:29px}
- .page-tabs{background:#4A5C6AF2;border-color:var(--line)}.page-tabs button{font-size:12px;letter-spacing:0}.page-tabs button[aria-pressed=true]{background:var(--ink);color:#11212D}.page-tabs button:before{font-size:19px}.sync-bar{font-size:11px}.sync-bar .quiet{font-size:11px}.tools .quiet{font-size:11px}.account-button{border-radius:50%;font-size:18px}.date-nav,.month-nav{gap:0}.month-nav{font-size:12px}.habit-info strong{font-size:16px}.habit-info p{font-size:12px}.legend{font-size:10px}.workout-card strong{font-size:26px}.session-head h3{font-size:23px}dialog{padding:24px 20px}footer{font-size:11px}
+ .page-tabs{background:#F3F6F7F2;border-color:var(--line)}.page-tabs button{font-size:12px;letter-spacing:0}.page-tabs button[aria-pressed=true]{background:var(--green);color:#FCFDFD}.page-tabs button:before{font-size:19px}.sync-bar{font-size:11px}.sync-bar .quiet{font-size:11px}.tools .quiet{font-size:11px}.account-button{border-radius:50%;font-size:18px}.date-nav,.month-nav{gap:0}.month-nav{font-size:12px}.habit-info strong{font-size:16px}.habit-info p{font-size:12px}.legend{font-size:10px}.workout-card strong{font-size:26px}.session-head h3{font-size:23px}dialog{padding:24px 20px}footer{font-size:11px}
 }
 
 textarea:focus-visible{outline:3px solid var(--ink);outline-offset:3px}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline-color:var(--ink)}
 
-/* Superfícies claras para equilibrar o fundo azul profundo. */
-:is(.stat,.habits,.consistency,.workout-card,.weight-section,.training-guide,.body-insight){
- --paper:#CCD0CF;--ink:#11212D;--muted:#3C4D58;--line:#9BA8AB;--green:#253745;--pale:#B7C1C3;
- background:var(--paper);color:var(--ink);border-color:var(--line);color-scheme:light;
-}
-:is(.habits,.consistency,.workout-card,.weight-section,.training-guide) button:not(.primary):not(.day):hover{background:#BCC6C7;color:var(--ink)}
-:is(.habits,.weight-section,.training-guide) .primary{background:#253745;border-color:#253745;color:#E5E8E7}
-:is(.habits,.weight-section,.training-guide) .primary:hover{background:#4A5C6A;border-color:#4A5C6A}
-.habits .check[aria-pressed=true]{background:#253745;border-color:#253745;color:#E5E8E7}
-.habits .check{border-color:#7C8E94}
-.consistency .day{background:#B7C1C3;color:#11212D}
-.consistency .day[data-level='1']{background:#9BA8AB;color:#11212D}
-.consistency .day[data-level='2']{background:#4A5C6A;color:#E5E8E7}
-.consistency .day[data-level='3']{background:#253745;color:#E5E8E7}
-.consistency .day[data-level='4']{background:#06141B;color:#E5E8E7}
-.consistency .day.selected{outline-color:#11212D}
-.consistency .legend i{background:#9BA8AB}
-.consistency .legend i:nth-of-type(2){background:#4A5C6A}
-.consistency .legend i:nth-of-type(3){background:#253745}
-.consistency .legend i:nth-of-type(4){background:#06141B}
-.workout-card[aria-pressed=true]{background:#E2E6E5;border-color:#CCD0CF;box-shadow:0 0 0 2px #CCD0CF}
-.workout-card:hover{background:#E2E6E5}
+button:hover{background:var(--pale)}
+.primary:hover{background:#253745;border-color:#253745}
+.day{background:#E8EEF0;color:#253745}
+.day[data-level='1']{background:#CAD6DC;color:#253745}
+.day[data-level='2']{background:#8C9CA5;color:#11212D}
+.day[data-level='3']{background:#4A5C6A;color:#FCFDFD}
+.day[data-level='4']{background:#253745;color:#FCFDFD}
+.legend i{background:#CAD6DC}.legend i:nth-of-type(2){background:#8C9CA5}.legend i:nth-of-type(3){background:#4A5C6A}.legend i:nth-of-type(4){background:#253745}
+.workout-card:hover{background:#F0F4F5}.workout-card[aria-pressed=true]{background:#E8EEF0;border-color:#4A5C6A}
 .training-guide p{color:var(--muted)}
-.weight-section .body-chart line:not([stroke-dasharray]){stroke:#253745}
-.weight-section .body-chart line[stroke-dasharray]{stroke:#9BA8AB}
-.weight-section .body-chart circle{fill:#253745;stroke:#CCD0CF}
-.weight-section .body-legend i{background:#253745!important}
-.account-button{background:#CCD0CF;color:#11212D}.account-button:hover{background:#E2E6E5;color:#11212D}
-@media(min-width:601px){.page-tabs{gap:12px;padding:10px 0}.page-tabs button{padding:12px 16px;border-radius:10px;border-bottom:0}.page-tabs button[aria-pressed=true]{background:#CCD0CF;color:#11212D}}
-
-/* Legibilidade dos textos sobre o fundo azul acinzentado mais claro. */
-header,.sync-bar,.intro,.archived,.data-protection,footer,.page-tabs{--muted:#E0E6E7}
+@media(min-width:601px){.page-tabs{gap:12px;padding:10px 0}.page-tabs button{padding:12px 16px;border-radius:10px;border-bottom:0}.page-tabs button[aria-pressed=true]{background:#E8EEF0;color:#253745}}

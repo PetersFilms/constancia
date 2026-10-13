@@ -14,10 +14,10 @@
    if(plain(a)&&plain(b)){const out=clone(a);for(const k of Object.keys(b)){if(['__proto__','constructor','prototype'].includes(k))continue;Object.defineProperty(out,k,{value:combine(a[k],b[k],path?path+'.'+k:k),writable:true,enumerable:true,configurable:true});}return out;}
    if(Array.isArray(a)&&Array.isArray(b)){
     // Field arrays inside an identified record are kept intact, never mixed.
-    const identified=path==='habits'?'id':path==='body.records'||path==='body.weights'?'date':path==='training.sessions'?'id':path==='training.exercises'||path==='training.workouts'?'name':null;
+    const identified=path==='habits'||path==='todo.items'||path==='todo.history'?'id':path==='body.records'||path==='body.weights'?'date':path==='training.sessions'?'id':path==='training.exercises'||path==='training.workouts'?'name':null;
     if(identified){const out=clone(a),key=x=>identified==='name'?norm(x.name):x[identified];const map=new Map(out.map((x,i)=>[key(x),i]));for(const item of b){const k=key(item);if(!map.has(k)){map.set(k,out.length);out.push(clone(item));}else{const i=map.get(k);if(!equal(out[i],item)){const filled=restore(out[i],item);if(!equal(filled,restore(item,out[i])))conflicts.push(path+':'+k);out[i]=filled;}}}return out;}
     // Preserve new collections belonging to future areas too.
-    if(path.startsWith('habits.')||path.startsWith('training.sessions.')||path.startsWith('body.records.'))return clone(a);
+    if(path.startsWith('todo.items.')||path.startsWith('todo.history.')||path.startsWith('habits.')||path.startsWith('training.sessions.')||path.startsWith('body.records.'))return clone(a);
     const out=clone(a);for(const item of b)if(!out.some(x=>equal(x,item)))out.push(clone(item));return out;
    }
    return clone(a);

@@ -2,13 +2,14 @@ const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY='constancia.recovery.before-mobile-sync-v4';
+const RECOVERY='constancia.recovery.before-todo-v5';
 try{
  const saved=localStorage.getItem(STORAGE);savedRevision=saved;
  Persistence.protect(localStorage,RECOVERY,saved);
  state=saved?H.validate(JSON.parse(saved)):initial();let migrated=false;
  if(state.body===undefined){state.body=Body.seed();migrated=true}
  if(state.training===undefined){state.training=Training.seed();migrated=true}
+ if(state.todo===undefined){state.todo=ToDoCore.seed();migrated=true}
  if(migrated){const serialized=JSON.stringify(state);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;}
 }catch(e){state=initial();state.body=Body.seed();state.training=Training.seed();recoveryRequired=true;setTimeout(()=>toast('Os dados originais foram mantidos. Faça um backup e restaure um arquivo válido antes de registrar.'),100)}
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,7 +23,7 @@ function commit(next,notify=true){try{
 function update(fn){if(recoveryRequired){toast('Restaure um backup para proteger os dados que não puderam ser lidos.');return false}const next=JSON.parse(JSON.stringify(state));fn(next);return commit(next)}
 function render(){
  $('dataStatus').hidden=!recoveryRequired;$('dataStatus').textContent=recoveryRequired?'Os dados salvos não puderam ser lidos. A versão original continua no navegador; faça um backup antes de restaurar. Novos registros estão bloqueados para proteger seu histórico.':'';
- if(window.renderBody)window.renderBody();if(window.renderTraining)window.renderTraining();
+ if(window.renderTodo)window.renderTodo();if(window.renderBody)window.renderBody();if(window.renderTraining)window.renderTraining();
  today=H.key(new Date());if(selected>today)selected=today;$('date').max=today;$('date').value=selected;$('next').disabled=selected>=today;
  const daily=H.day(state,today),p=H.period(state,today,Number($('range').value)),total=Object.values(state.checks).reduce((sum,c)=>sum+Object.values(c).filter(Boolean).length,0),streak=H.streak(state,today);
  $('stats').innerHTML=`<div class="stat"><span class="label">Hoje</span><strong>${daily.done} <span>/ ${daily.planned}</span></strong><small>${daily.planned&&daily.done===daily.planned?'Seu dia está completo.':'Hábitos concluídos'}</small></div><div class="stat"><span class="label">Sequência atual</span><strong>${streak} <span>${streak===1?'dia':'dias'}</span></strong><small>Dias previstos completos</small></div><div class="stat"><span class="label">Pequenos avanços</span><strong>${total}</strong><small>Registros desde o início</small></div>`;
@@ -39,8 +40,8 @@ function render(){
 function renderChart(p){
  const w=390,l=30,r=8,top=12,bottom=112,step=(w-l-r)/(p.points.length-1);
  let path='',open=false;const nodes=[];
- p.points.forEach((v,i)=>{const x=l+i*step,y=bottom-(v.planned?v.done/v.planned:0)*(bottom-top);if(!v.planned){open=false;return}path+=`${open?'L':'M'}${x},${y} `;open=true;nodes.push(`<circle cx="${x}" cy="${y}" r="${p.points.length>30?2:3}" fill="#E5E8E7"><title>${format(v.date,{day:'2-digit',month:'2-digit'})}: ${v.done} de ${v.planned}</title></circle>`)});
- $('chart').innerHTML=`<svg viewBox="0 0 ${w} 140" role="img" aria-label="Evolução dos últimos ${p.points.length} dias: ${p.done} de ${p.planned} hábitos cumpridos, ${p.rate} por cento.">${[0,50,100].map(v=>`<line x1="${l}" x2="${w-r}" y1="${bottom-v}" y2="${bottom-v}" stroke="#4A5C6A" stroke-dasharray="3 4"/><text x="0" y="${bottom-v+3}" fill="#B8C3C4" font-size="8">${v}%</text>`).join('')}<path d="${path}" fill="none" stroke="#E5E8E7" stroke-width="2" stroke-linejoin="round"/>${nodes.join('')}<text x="${l}" y="136" fill="#B8C3C4" font-size="8">${format(p.points[0].date,{day:'2-digit',month:'short'})}</text><text x="${w-r}" y="136" text-anchor="end" fill="#B8C3C4" font-size="8">Hoje</text></svg>`;
+ p.points.forEach((v,i)=>{const x=l+i*step,y=bottom-(v.planned?v.done/v.planned:0)*(bottom-top);if(!v.planned){open=false;return}path+=`${open?'L':'M'}${x},${y} `;open=true;nodes.push(`<circle cx="${x}" cy="${y}" r="${p.points.length>30?2:3}" fill="#4A5C6A"><title>${format(v.date,{day:'2-digit',month:'2-digit'})}: ${v.done} de ${v.planned}</title></circle>`)});
+ $('chart').innerHTML=`<svg viewBox="0 0 ${w} 140" role="img" aria-label="Evolução dos últimos ${p.points.length} dias: ${p.done} de ${p.planned} hábitos cumpridos, ${p.rate} por cento.">${[0,50,100].map(v=>`<line x1="${l}" x2="${w-r}" y1="${bottom-v}" y2="${bottom-v}" stroke="#DCE3E6" stroke-dasharray="3 4"/><text x="0" y="${bottom-v+3}" fill="#5B6C76" font-size="8">${v}%</text>`).join('')}<path d="${path}" fill="none" stroke="#4A5C6A" stroke-width="2" stroke-linejoin="round"/>${nodes.join('')}<text x="${l}" y="136" fill="#5B6C76" font-size="8">${format(p.points[0].date,{day:'2-digit',month:'short'})}</text><text x="${w-r}" y="136" text-anchor="end" fill="#5B6C76" font-size="8">Hoje</text></svg>`;
 }
 function renderCalendar(){const start=month+'-01',first=H.date(start),length=new Date(first.getFullYear(),first.getMonth()+1,0).getDate(),offset=(first.getDay()+6)%7;
  $('monthLabel').textContent=format(start,{month:'long',year:'numeric'});$('nextMonth').disabled=month>=today.slice(0,7);
@@ -92,5 +93,5 @@ window.ConstanciaData={
  blocked:()=>recoveryRequired,
  apply:(next,expected)=>{if(recoveryRequired||!ConstanciaSyncCore.equal(state,expected))return false;return commit(H.validate(Persistence.clone(next)),false)},
  protect:(key,value)=>{localStorage.setItem(key,JSON.stringify(value))},
- pristine:()=>{const clean=initial();clean.body=Body.seed();clean.training=Training.seed();const current=Persistence.clone(state);current.habits.forEach(h=>{h.start=today});return ConstanciaSyncCore.equal(current,clean)}
+ pristine:()=>{const clean=initial();clean.body=Body.seed();clean.training=Training.seed();clean.todo=ToDoCore.seed();const current=Persistence.clone(state);current.habits.forEach(h=>{h.start=today});return ConstanciaSyncCore.equal(current,clean)}
 };

@@ -38,4 +38,16 @@ As regras permanentes de preservação estão em AGENTS.md. Dados pessoais e bac
 
 ## Identidade visual
 
-A interface usa a paleta azul e cinza da referência: fundo azul acinzentado `#4A5C6A`, superfícies secundárias `#11212D`, cartões de gráficos `#253745`, divisórias `#4A5C6A` e superfícies claras em `#CCD0CF` nos resumos, na prática, no calendário, nos treinos e no registro de peso. Os cartões claros usam texto azul escuro, com níveis do calendário e gráfico de peso ajustados ao novo contraste. Textos usam cinzas claros com contraste ajustado. O fundo usa a cor uniforme `#4A5C6A`, mantendo os cartões claros. A Pogonia fornecida pelo usuário é carregada localmente em WOFF2 nos pesos regular, médio e semibold, com os arquivos incluídos no cache offline. Os créditos da fonte estão em FONT-NOTICE.md. Esta mudança visual preserva as chaves de armazenamento, a sincronização e os registros existentes.
+A interface usa fundo branco gelo `#F3F6F7`, cartões quase brancos `#FCFDFD`, texto azul escuro `#253745`, texto secundário `#5B6C76` e detalhes discretos em cinza azulado. Gráficos, calendário, campos e navegação seguem o tema claro. A Pogonia fornecida pelo usuário é carregada localmente em WOFF2 nos pesos regular, médio e semibold, com os arquivos incluídos no cache offline. Os créditos da fonte estão em FONT-NOTICE.md. Esta mudança visual preserva as chaves de armazenamento, a sincronização e os registros existentes.
+
+## To-Do e Google Agenda
+
+A nova aba acompanha compromissos em Hoje, Pendências, Amanhã, Próximos e Histórico, com conclusão direta, cancelamento, adiamento, histórico e indicadores. Pendências mostra somente os últimos 90 dias dentro do ano corrente, sem excluir registros antigos. Estado local em `state.todo`, preservado nos backups e na sincronização existente.
+
+O backend OAuth/Calendar é a função `calendar` no Supabase. Credenciais cifradas ficam fora do JSON do usuário e não são expostas ao cliente. A conexão exige um cliente OAuth Google e secrets do backend; o aplicativo informa quando essa configuração está pendente.
+
+- [Diagnóstico e estratégia](docs/TODO-DIAGNOSTICO.md)
+- [Configuração Google e teste de consentimento](docs/TODO-GOOGLE-CONFIGURACAO.md)
+- [Relatório de implementação](docs/TODO-RELATORIO.md)
+
+`npm ci` e `npm test` executam os testes locais: core, interface, reconciliação, OAuth/HTTP com serviços simulados e isolamento das tabelas em PostgreSQL local via PGlite. Nenhum teste usa agenda ou tokens reais. Node.js 24 é usado para validar o handler TypeScript sem um segundo compilador.

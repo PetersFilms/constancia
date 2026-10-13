@@ -15,3 +15,7 @@ test-*.cjs
 .env.*
 *.log
 .DS_Store
+
+!**/.env.example
+!supabase/functions/calendar/deno.json
+supabase/.temp/
