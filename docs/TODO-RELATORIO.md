@@ -1,6 +1,6 @@
 # Constância — relatório do módulo To-Do
 
-Atualizado em 13/10/2026. Implementação sobre o projeto existente, base 8123540 (branco gelo e Pogonia). A entrega foi desenvolvida e validada localmente; o banco e o backend foram implantados no Supabase. O proprietário concluiu login, vinculação e consentimento. A importação real foi observada; a validação de ida e volta em agenda de teste foi concluída. O frontend foi publicado no GitHub Pages, com recursos/cache v34 e conferência de igualdade dos arquivos principais.
+Atualizado em 13/10/2026. Implementação sobre o projeto existente, base 8123540 (branco gelo e Pogonia). A entrega foi desenvolvida e validada localmente; o banco e o backend foram implantados no Supabase. O proprietário concluiu login, vinculação e consentimento. A importação real foi observada; a validação de ida e volta em agenda de teste foi concluída. O frontend foi publicado no GitHub Pages, com recursos/cache v37 e conferência de igualdade dos arquivos principais.
 
 ## Resultado implementado
 
@@ -32,7 +32,7 @@ Criados:
 
 Modificados:
 
-- `index.html`, `app.js`, `core.js`, `sw.js`: carregamento, aba, migração aditiva e recursos/cache v34.
+- `index.html`, `app.js`, `core.js`, `sw.js`: carregamento, aba, migração aditiva e recursos/cache v37.
 - `body.js`, `training.js`: uso da navegação compartilhada; áreas existentes preservadas.
 - `persistence-core.js`, `sync-core.js`, `sync.js`: preservação e reconciliação de itens/histórico, integração com a autenticação já existente.
 - `body-decimal.test.cjs`, `training-dom.test.cjs`: regressões adaptadas à inicialização das quatro áreas.
@@ -69,7 +69,7 @@ O consentimento da Agenda foi concedido pelo próprio proprietário na prévia i
 
 ## Testes e evidências
 
-`npm test`: **59 testes, 59 aprovados, zero falhas**, em 13/10/2026.
+`npm test`: **65 testes, 65 aprovados, zero falhas**, em 13/10/2026.
 
 | Área | Validação |
 | --- | --- |
@@ -90,7 +90,7 @@ O teste visual usou origem separada `127.0.0.1:8772`, com um compromisso fictíc
 
 1. Login, vinculação do histórico e consentimento Google foram concluídos pelo proprietário. A importação real foi observada.
 2. Importação, exportação, conclusão/desfazer, cancelamento, adiamento, edição externa e alteração por ocorrência foram conferidos nos dois lados na agenda de testes autorizada. A remoção de uma cópia de convite foi refletida como exclusão externa; exclusão permanente de eventos não foi executada.
-3. O frontend v34 foi publicado em https://petersfilms.github.io/constancia/#todo. A publicação inclui o tema branco gelo e o módulo To-Do. index.html, todo-core.js, todo.js e sw.js responderam HTTP 200 e coincidiram byte a byte com a versão local. O envio foi feito pela sessão autorizada do GitHub no Chrome; o Git local não tinha autenticação de escrita.
+3. O frontend v37 foi publicado em https://petersfilms.github.io/constancia/#todo. A publicação inclui o tema branco gelo e o módulo To-Do. index.html, todo-core.js, todo.js e sw.js responderam HTTP 200 e coincidiram byte a byte com a versão local. O envio foi feito pela sessão autorizada do GitHub no Chrome; o Git local não tinha autenticação de escrita.
 4. Atualizações automáticas ocorrem ao abrir/retornar e a cada 60 segundos com o aplicativo visível. Não há atualização contínua enquanto o aplicativo está fechado.
 5. Eventos comuns entram sem limite de data; recorrências são expandidas em ±366 dias da data consultada. Navegar recompõe a janela; não há expansão de série infinita.
 6. O Google mantém a referência de dados confirmados. Alteração simultânea conserva a proposta local para resolução explícita; não há sobrescrita automática forçada.
@@ -102,13 +102,13 @@ O Advisor Supabase informa RLS sem policies nas duas tabelas privadas: é intenc
 
 ## Critério para considerar concluído
 
-A implementação e os testes isolados passaram. Os critérios funcionais foram exercitados localmente, inclusive sincronização real. A disponibilidade no GitHub Pages foi conferida por HTTP e comparação dos arquivos publicados. Os testes de ida e volta com a conta do proprietário ocorreram na prévia local; o teste interativo autenticado no domínio público pode ser realizado pelo proprietário após abrir a versão atualizada.
+A implementação e os testes isolados passaram. Os critérios funcionais foram exercitados localmente, inclusive sincronização real. A disponibilidade no GitHub Pages foi conferida por HTTP e comparação dos arquivos publicados. Os testes de ida e volta com a conta do proprietário ocorreram na prévia local; o teste interativo autenticado no domínio público foi realizado após abrir a versão atualizada.
 
 ## Atualização após consentimento do proprietário
 
 O proprietário entrou, vinculou o histórico e concluiu o consentimento Google na prévia interna. A importação real foi observada, assim como conclusões já registradas pelo proprietário. Não foi necessário repetir OAuth. A primeira leitura encontrou limite de CPU na função; foi implantada a reutilização de formatadores e validações de fuso (versão 10).
 
-Conforme nova instrução, o calendário de feriados do Google deixa de ser importado e seus itens anteriores ficam ocultos das visualizações/indicadores, sem apagamento. Pendências e contadores de pendentes/acumulados consideram os últimos 90 dias dentro do ano corrente. Balanço e taxa de execução continuam anuais, com registros antigos conservados. A base de sincronização grande usa compressão sem perdas em envelope de metadados v2; chave e JSON principal permanecem. Adicionados testes de volume, quota, recarga, metadados legados, feriados e recorte anual. Total: 59 testes aprovados. A validação bidirecional foi concluída na agenda autorizada. O frontend foi publicado no GitHub Pages, com recursos/cache v34 e conferência de igualdade dos arquivos principais.
+Conforme nova instrução, o calendário de feriados do Google deixa de ser importado e seus itens anteriores ficam ocultos das visualizações/indicadores, sem apagamento. Pendências e contadores de pendentes/acumulados consideram os últimos 90 dias dentro do ano corrente. Balanço e taxa de execução continuam anuais, com registros antigos conservados. A base de sincronização grande usa compressão sem perdas em envelope de metadados v2; chave e JSON principal permanecem. Adicionados testes de volume, quota, recarga, metadados legados, feriados e recorte anual. Total: 65 testes aprovados. A validação bidirecional foi concluída na agenda autorizada. O frontend foi publicado no GitHub Pages, com recursos/cache v37 e conferência de igualdade dos arquivos principais.
 
 A função agora processa três páginas/operações por chamada, com páginas de até 250 eventos. Cursores intermediários guardam fase, página e agenda atual, e a retomada prossegue para agendas seguintes e para a fila de exportação. Não reinicia a primeira agenda a cada chamada. A interface continua em intervalos de três segundos enquanto a carga inicial estiver parcial; após concluir, retorna ao intervalo de um minuto. Teste de retomada paginada com múltiplas agendas e exportação aprovado.
 
@@ -129,7 +129,7 @@ O proprietário autorizou criar a agenda privada **Constância — testes**, fus
 
 Os compromissos fictícios foram cancelados ao encerrar a validação, para não deixarem pendências ativas na rotina. A agenda de testes e os históricos foram preservados. Cancelamentos de teste permanecem identificados nos registros e podem aparecer no contador de cancelados, mas não entram na taxa de execução.
 
-Capturas de comprovação foram salvas fora do repositório: conclusão com horário real, adiamento com planejamento original e edição externa recebida. A função final é a versão 10; frontend local usa recursos/cache v34. Testes automatizados finais: **59 aprovados, zero falhas**.
+Capturas de comprovação foram salvas fora do repositório: conclusão com horário real, adiamento com planejamento original e edição externa recebida. A função final é a versão 10; frontend local usa recursos/cache v37. Testes automatizados finais: **65 aprovados, zero falhas**.
 
 Revisões Google que alteram somente metadados internos (por exemplo, a revisão de outra ocorrência) atualizam a base ETag sem criar conflito quando título, descrição, datas e cancelamento confirmado permanecem iguais. A operação pendente conserva a programação confirmada que lhe deu origem. Mudanças reais nesses campos continuam protegidas como conflito, e o envio usa If-Match. Teste de revisão interna versus edição real aprovado.
 
@@ -137,4 +137,22 @@ Revisões Google que alteram somente metadados internos (por exemplo, a revisão
 
 Por solicitação do proprietário, compromissos com mais de 90 dias saem da lista e dos contadores de pendências. O dia exato do limite permanece incluído; a janela avança diariamente no fuso configurado e nunca inclui o ano anterior. Registros, estados, histórico, fila de sincronização e eventos Google não são apagados ou alterados por esse filtro. Eventos de vários dias que ainda estão acontecendo permanecem em Hoje. O balanço anual e seu denominador são preservados, para que ocultar pendências antigas não aumente artificialmente a taxa de execução.
 
-Foram adicionados testes de fronteira 90/91 dias, avanço diário, ano, fuso, eventos em andamento e preservação byte a byte do estado. Total final: 59 testes aprovados, zero falhas. Recursos/cache frontend v34.
+Foram adicionados testes de fronteira 90/91 dias, avanço diário, ano, fuso, eventos em andamento e preservação byte a byte do estado. Total final: 65 testes aprovados, zero falhas. Recursos/cache frontend v37.
+
+## Carregamento de histórico já migrado
+
+Na conferência do domínio publicado foi observado bloqueio de leitura apesar de o backup exportado ser válido. A inicialização foi ajustada para não exigir uma nova cópia de recuperação quando hábitos, treinos, corpo e To-Do já estão no formato atual e não há migração estrutural. Migrações reais e dados inválidos continuam exigindo proteção; falha da proteção conserva o original e bloqueia escrita. Teste de armazenamento com quota confirma ambos os caminhos. Nenhum dado ou cópia anterior foi removido. Total: 65 testes aprovados, zero falhas.
+
+## Recuperação grande na origem online
+
+A leitura online confirmou um backup válido, mas a primeira sincronização encontrou quota ao duplicar sua recuperação no localStorage. Novas cópias da vinculação, primeira sincronização e conflitos são guardadas com JSON completo e verificação de leitura no IndexedDB local constancia-recovery/copies. Os registros principais, metadados, autenticação e cópias anteriores no localStorage permanecem. O envio e a vinculação aguardam a confirmação da gravação; erros ou troca de conta impedem continuar. A conta oferece download da recuperação anterior do aparelho, e o download de conflitos aceita o armazenamento novo e o legado.
+
+Criados recovery-store.js e recovery-store.test.cjs. Atualizados app.js, sync-engine.js, sync.js, index.html, sw.js e as dependências de teste (fake-indexeddb 6.2.5). Testes de cópia grande byte a byte, quota, recarga, recuperação legada, falha antes do envio e troca de conta durante a proteção aprovados. Total final: 65 testes, zero falhas. [Referência da API local](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API/Using_IndexedDB).
+
+## Conferência do site publicado
+
+A conta existente abriu no domínio público e a reunião de históricos terminou com status Sincronizado. As diferenças foram comparadas em backup protegido: hábitos, treinos e corpo eram iguais; títulos e horários do To-Do coincidiam. Foram mantidas as conclusões mais recentes da conta, além das duas cópias completas. Nenhum registro pessoal entrou no GitHub.
+
+Na agenda de testes autorizada, um compromisso fictício criado pelo site apareceu como exatamente um evento no Google, com a data e o horário escolhidos. A conclusão pelo checkbox não abriu modal, registrou o instante real e permaneceu após recarga. O teste foi cancelado ao encerrar; a releitura Google confirmou [Cancelado], com o mesmo ID e horário, e o histórico foi mantido. O limite de 90 dias foi conferido na interface e nas fronteiras automatizadas.
+
+Pedidos simultâneos de sincronização automática/manual da mesma conta agora aguardam o mesmo resultado; não exibem falha somente por haver um envio em andamento. Teste de concorrência e isolamento de conta aprovado. Função Calendar permanece na versão 10; frontend final v37. Total: 65 testes aprovados. A publicação usa commits da sessão autorizada do GitHub; o histórico Git local difere, mas a conferência final compara os arquivos de ambos os lados.
