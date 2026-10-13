@@ -5,8 +5,9 @@ let state,recoveryRequired=false,savedRevision=null;
 const RECOVERY='constancia.recovery.before-todo-v5';
 try{
  const saved=localStorage.getItem(STORAGE);savedRevision=saved;
- Persistence.protect(localStorage,RECOVERY,saved);
- state=saved?H.validate(JSON.parse(saved)):initial();let migrated=false;
+ try{state=saved?H.validate(JSON.parse(saved)):initial();}catch(error){Persistence.protect(localStorage,RECOVERY,saved);throw error}let migrated=false;
+ // A current-format history needs no migration copy; duplicating large histories can exhaust storage.
+ if(state.body===undefined||state.training===undefined||state.todo===undefined)Persistence.protect(localStorage,RECOVERY,saved);
  if(state.body===undefined){state.body=Body.seed();migrated=true}
  if(state.training===undefined){state.training=Training.seed();migrated=true}
  if(state.todo===undefined){state.todo=ToDoCore.seed();migrated=true}
