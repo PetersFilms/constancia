@@ -169,3 +169,12 @@ Pedidos simultâneos de sincronização automática/manual da mesma conta agora 
 - 73 testes passaram: preservação de todas as áreas e campos futuros, sincronização e restauração de preferências, agendas selecionadas e convites, mudanças de dia/fuso, dias inteiros, eventos com vários dias, recorrência por ocorrência, conclusão/desfazer/cancelamento, ausência de operações Google por continuidade, proteção assíncrona e revisão concorrente. Testes anteriores de integração e RLS continuam incluídos.
 - Teste visual isolado com dados fictícios: seleção persistiu após recarga, listas e contadores trocaram de agenda, avisos apareceram em Amanhã; editor sem transbordamento horizontal em celular. Nenhum compromisso real foi editado para validar esta revisão.
 - Arquivos alterados: app.js, todo-core.js, todo.js, todo.css, index.html, sw.js, todo.test.cjs, todo-dom.test.cjs, training-dom.test.cjs, AGENTS.md e este relatório. Recursos/cache v38.
+
+
+### Refinamento publicado v39 — catálogo de agendas independente
+
+A validação com a conta existente identificou que os nomes dependiam da conclusão da sincronização de um histórico grande. A ação autenticada `calendars` no backend agora lê somente o catálogo, com paginação, renovação de token, lease e isolamento por usuário, sem ler/gravar eventos ou alterar o histórico. Os nomes personalizados da agenda também são respeitados. A interface carrega esse catálogo antes da atualização dos registros e reconhece a principal pelo accountId enquanto aguarda os nomes. Os escopos e a autenticação existentes são mantidos.
+
+Backend calendar ACTIVE v11; nenhum segredo novo ou migração de tabela. Frontend/cache v39. Mais um teste DOM confirma catálogo e filtro principal disponíveis enquanto a sincronização de registros ainda aguarda; os testes HTTP verificam ausência de alterações no histórico, ausência de credenciais na resposta, bloqueio de origem/usuário e lease concorrente. Total: 74 testes aprovados. Arquivos adicionais: README.md, calendar-auth.test.cjs e supabase/functions/calendar/index.ts.
+
+Documentação consultada: [autenticação das Edge Functions](https://supabase.com/docs/guides/functions/auth) e [catálogo do Google Calendar](https://developers.google.com/workspace/calendar/api/v3/reference/calendarList/list). O handler existente mantém verificação do usuário em cada POST e estado/PKCE no callback; a configuração verify_jwt=false já existente foi preservada, sem ampliar acesso.
