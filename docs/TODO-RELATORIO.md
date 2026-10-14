@@ -189,3 +189,9 @@ Documentação consultada: [autenticação das Edge Functions](https://supabase.
 
 
 Revisão final v40: a virada local do dia também atualiza o To-Do aberto sem internet e sem conta Google, sem gravar eventos. Teste DOM com relógio simulado confirma o aviso após a meia-noite e o JSON armazenado inalterado. Total final: 76 testes aprovados; frontend/cache v40; backend Calendar v11.
+
+
+Revisão v41: conforme pedido do usuário, exclusões detectadas no Google Agenda ficam ocultas também do Histórico e dos indicadores. Itens e auditorias internos permanecem intactos para impedir recriação/duplicação em novas sincronizações. Cancelamentos operacionais continuam no histórico. Testes cobrem todos os estados, recarga, preservação byte a byte, indicadores e restauração externa do mesmo evento sem duplicação. Frontend/cache v41; nenhuma alteração de banco ou backend.
+Resultado da revisão v41: 78 testes aprovados, incluindo importação de exclusão de série, estados concluído/cancelado/adiado, indicadores e preservação interna após recarga.
+
+Validação real de criação: um compromisso fictício foi criado pelo formulário do Constância, com destino na agenda privada de testes. A consulta independente ao Google retornou um único evento confirmado; a interface do Google Agenda exibiu o mesmo título, data, intervalo e descrição. Nenhum compromisso pessoal foi alterado para esse teste. A criação bidirecional já existente foi verificada, sem uma nova implementação ou novos escopos.
