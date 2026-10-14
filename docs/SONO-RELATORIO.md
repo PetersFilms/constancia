@@ -2,7 +2,7 @@
 
 ## Resultado
 
-Implementação no projeto existente, com PWA estática, identidade visual clara e fonte Pogonia, armazenamento local e conta privada existentes. Publicação preparada na versão de recursos 45. Nenhuma noite fictícia foi salva na conta real: dados de registro e gráficos foram exercitados somente numa origem isolada sem login.
+Implementação no projeto existente, com PWA estática, identidade visual clara e fonte Pogonia, armazenamento local e conta privada existentes. Publicação preparada na versão de recursos 46. Nenhuma noite fictícia foi salva na conta real: dados de registro e gráficos foram exercitados somente numa origem isolada sem login.
 
 ## Arquivos
 
@@ -23,7 +23,7 @@ Não foram criadas tabelas redundantes. O documento continua em `constancia_stat
 - Hoje, Histórico, Análises, Configurações, navegação horizontal e quinto botão principal no celular.
 - Formulário rápido com opcionais recolhidos, datas explícitas, estimativa imediata, edição e uma noite por data de despertar.
 - Oportunidade de sono separada do sono estimado; tempo na cama somente com entrada e saída; ausência de dados não vira zero.
-- Meta padrão de 480 minutos, despertar configurável, margem para adormecer, horário preferido para deitar, fuso, dias e horários por dia da semana.
+- Meta exibida em horas (8 ou 7,5), com armazenamento interno em minutos e campos arredondados, despertar configurável, margem para adormecer, horário preferido para deitar, fuso, dias e horários por dia da semana.
 - Planejamento por noite e séries nativas diárias/semanais/dias selecionados, agrupadas por horários, com período de até um ano e término explícito.
 - Ação explícita para adicionar/atualizar Google Agenda, escolha da agenda, lembrete opcional, aviso de envio, revisão de conflitos, término de próximos horários e preservação dos anteriores.
 - Conflitos reais e compromissos próximos são diferenciados; leitura das agendas selecionadas, sem reagendar terceiros.
@@ -50,7 +50,7 @@ No servidor foram observadas falhas 57014 de tempo de execução. As gravações
 
 ## Testes e limites
 
-Suite completa: 104 testes aprovados, zero falhas. Cobertura: meia-noite, fuso/DST, descontos, opcionais ausentes, metas históricas, edição, campos desconhecidos, recuperação assíncrona, falhas e revisões entre abas, backups, reconhecimento de aparelho novo, reconciliação, amostras, conflitos, RRULE, ocorrência individual, adiamento/cancelamento/exclusão, idempotência, substituição dependente, encerramento e sessões móveis simuladas. Regressões de hábitos, corpo, treinos e To-Do incluídas.
+Suite completa: 105 testes aprovados, zero falhas. A última revisão foi executada numa cópia isolada do mesmo código, com as dependências do lockfile, após um bloqueio de leitura de dependências na pasta de desenvolvimento. Cobertura: meia-noite, fuso/DST, descontos, opcionais ausentes, metas históricas, edição, campos desconhecidos, recuperação assíncrona, falhas e revisões entre abas, backups, reconhecimento de aparelho novo, reconciliação, amostras, conflitos, RRULE, ocorrência individual, adiamento/cancelamento/exclusão, idempotência, substituição dependente, encerramento e sessões móveis simuladas. Regressões de hábitos, corpo, treinos e To-Do incluídas.
 
 Interface exercitada visualmente em desktop e viewport de celular: cinco áreas, quatro vistas de Sono, criação/edição de noite fictícia isolada, gráficos, configuração real de rotina e planejamento Google controlado. Sem rolagem lateral na largura testada. Uma requisição anônima ao backend recebeu 401; RLS e políticas de proprietário verificados. Os avisos de credenciais sem políticas são intencionais: clientes não recebem acesso às tabelas cifradas. Aviso de proteção de senha pré-existente não foi alterado.
 
