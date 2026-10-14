@@ -5,17 +5,17 @@ export const eventId=async(user,id)=>'c'+await digest(user+'|'+id);
 export const itemId=async(calendar,e)=>'g-'+(await digest(calendar+'|'+e.id+'|'+JSON.stringify(e.originalStartTime||null))).slice(0,64);
 export class ProviderError extends Error{constructor(status,message='Falha na agenda'){super(message);this.status=status;}}
 // Injectable adapter: the test suite never calls a real Google calendar.
-export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity}){
- const lease=crypto.randomUUID(),at=clock(),deadline=Date.now()+40000,pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection;
+export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0}){
+ const lease=crypto.randomUUID(),at=clock(),deadline=Date.now()+40000,pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
  if(!await db.claim(lease))return {busy:true};
  const check=()=>{if(Date.now()>deadline)throw pause;};
  const take=()=>{check();if(remaining--<=0)throw pause;};
- const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
+ const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,calendarSyncedVersion:jobNoticeVersion,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
  async function change(fn){for(let attempt=0;attempt<6;attempt++){check();const row=await db.readState();if(!row?.state)throw Error('Vincule seu histórico antes de sincronizar a agenda.');const next=T.copy(row.state);next.todo??=T.seed();await fn(next.todo);T.validate(next.todo);check();if(JSON.stringify(next)===JSON.stringify(row.state))return next.todo;if(await db.saveState(row.revision,next))return next.todo;}throw Error('O histórico mudou em outro aparelho. Tente novamente.');}
  async function merge(calendar,events){return change(async todo=>{for(const e of events)T.importEvent(todo,calendar,e,await itemId(calendar.id,e),clock());});}
  const checkpoint=()=>db.saveConnection({cursors});
  try{
-  connection=await db.connection();cursors=T.copy(connection.cursors||{});calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
+  connection=await db.connection();cursors=T.copy(connection.cursors||{});jobNoticeVersion=cursors.__constancia_notice_version??noticeVersion;cursors.__constancia_notice_version=jobNoticeVersion;calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
   const wanted=date||T.day(at),timeMin=T.shift(wanted,-366)+'T00:00:00Z',timeMax=T.shift(wanted,366)+'T23:59:59Z';
   const resumed=calendars.findIndex(c=>c.id===cursors.__constancia_next?.id),start=cursors.__constancia_next?.id==='__operations'?calendars.length:Math.max(0,resumed);
   for(let index=start;index<calendars.length;index++){
@@ -82,7 +82,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
     if(e.status===401)throw e;
    }
   }
-  cursors.__constancia_next=null;await db.saveConnection({cursors,last_sync:clock()});
+  cursors.__constancia_next=null;delete cursors.__constancia_notice_version;await db.saveConnection({cursors,last_sync:clock()});
   return answer(false);
  }catch(e){if(e!==pause)throw e;await checkpoint();return answer(true);}finally{await db.release(lease);}
 }
