@@ -4,3 +4,6 @@
 @media(max-width:370px){.sleep-form-grid{grid-template-columns:1fr}.sleep-plan-hours{gap:12px}.sleep-plan-hours strong{font-size:30px}.page-tabs #bodyTab{font-size:9px}}
 
 .sleep-series-list>div{display:flex;gap:14px;align-items:center;padding:12px 0;border-top:1px solid var(--line);font-size:12px}.sleep-series-list>div>span{flex:1}.sleep-series-list strong,.sleep-series-list small{display:block}.sleep-series-list small{color:var(--muted);margin-top:4px;font-size:11px}.sleep-series-list button{min-height:44px;font-size:11px}@media(max-width:600px){.sleep-series-list>div{align-items:start;flex-direction:column}}
+
+/* Rounded fields follow the existing cards and controls. */
+.sleep-settings input:not([type=checkbox]),.sleep-settings select,.sleep-dialog input:not([type=checkbox]),.sleep-dialog select,#sleepPlanDate{border-radius:18px;padding-left:15px;padding-right:15px}.sleep-dialog textarea{border-radius:16px}.sleep-settings input:focus-visible,.sleep-dialog input:focus-visible{border-radius:18px}
