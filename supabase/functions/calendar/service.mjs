@@ -27,7 +27,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
      take();let result;try{result=await google.events(calendar.id,{singleEvents:false,showDeleted:true,maxResults:250,...work.token?{syncToken:work.token}:{},...work.page?{pageToken:work.page}:{}});}catch(e){if(e.status===410&&work.token){Object.assign(work,{token:null,page:null,expand:true,rawSeen:[],seen:[]});await checkpoint();continue;}throw e;}
      const events=result.items||[];if(events.some(e=>e.recurrence||e.recurringEventId))work.expand=true;
      for(const e of events)if(!e.recurrence)work.rawSeen.push(e.id);
-     await merge(calendar,events.filter(e=>!e.recurrence||e.status==='cancelled'));work.page=result.nextPageToken||null;
+     await merge(calendar,events.filter(e=>!e.recurrence||e.status==='cancelled'||e.extendedProperties?.private?.constanciaSleepPlan));work.page=result.nextPageToken||null;
      if(!work.page){if(result.nextSyncToken)cursor.token=result.nextSyncToken;work.phase=work.expand?'expand':'done';}
      await checkpoint();
     }
@@ -48,7 +48,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   await change(todo=>{for(const i of todo.items)if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}});
   const row=await db.readState(),operations=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
   for(const snapshot of operations){
-   take();const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
+   take();if(snapshot.pending.dependsOn?.length){const latest=await db.readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
    const op=snapshot.pending.operationId;
    if(snapshot.pending.accountId!==connection.account_id||!calendar||!['owner','writer'].includes(calendar.accessRole)){
     await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:snapshot.pending.accountId!==connection.account_id?'O compromisso pertence a outra conta Google. Reconecte a conta original.':'Esta agenda não permite edição. A execução foi salva no Constância.'};});continue;
