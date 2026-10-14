@@ -1,4 +1,4 @@
-# Sincronização móvel — versão 48
+# Sincronização móvel — versão 49
 
 A mensagem genérica “Não foi possível salvar” era emitida ao gravar localmente, e escondia o motivo. Um histórico de aproximadamente 3,9 MB, somado à base de sincronização e às recuperações, pode exceder a quota do localStorage. Havia também verificações independentes por intervalo no histórico, To-Do e Sono; logs do servidor registraram consultas e gravações canceladas por tempo limite.
 
@@ -19,4 +19,4 @@ Testes automatizados cobrem histórico de 6 milhões de caracteres com quota sim
 
 Fontes técnicas: https://developers.google.com/workspace/calendar/api/guides/push e https://supabase.com/docs/guides/realtime/subscribing-to-database-changes.
 
-Resultado desta entrega: 117 testes automatizados aprovados. No navegador, a escolha da nuvem foi concluída com histórico fictício de 6 milhões de caracteres e quota reduzida; também houve validação de toque em largura móvel sem overflow. No backend real, seis canais Google foram confirmados; um compromisso fictício na agenda de testes gerou avisos e foi importado automaticamente. A versão dos avisos chegou a 3 e foi reconhecida como sincronizada em 3, sem pedido manual de importação.
+Resultado desta entrega: 118 testes automatizados aprovados. No navegador, a escolha da nuvem foi concluída com histórico fictício de 6 milhões de caracteres e quota reduzida; também houve validação de toque em largura móvel sem overflow. No backend real, seis canais Google foram confirmados; um compromisso fictício na agenda de testes gerou avisos e foi importado automaticamente. A versão dos avisos chegou a 3 e foi reconhecida como sincronizada em 3, sem pedido manual de importação.
