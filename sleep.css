@@ -7,3 +7,5 @@
 
 /* Rounded fields follow the existing cards and controls. */
 .sleep-settings input:not([type=checkbox]),.sleep-settings select,.sleep-dialog input:not([type=checkbox]),.sleep-dialog select,#sleepPlanDate{border-radius:18px;padding-left:15px;padding-right:15px}.sleep-dialog textarea{border-radius:16px}.sleep-settings input:focus-visible,.sleep-dialog input:focus-visible{border-radius:18px}
+.sleep-settings input:not([type=checkbox]),.sleep-settings select,.sleep-dialog input:not([type=checkbox]),.sleep-dialog select,#sleepPlanDate{border:1px solid var(--line);background:var(--paper);box-shadow:none}.sleep-settings input[type=date],.sleep-dialog input[type=date]{max-width:100%;width:100%}
+@media(max-width:600px){.sleep-settings .sleep-form-grid label:has(select),.sleep-settings .sleep-form-grid label:has(input[type=date]){grid-column:1/-1}}
