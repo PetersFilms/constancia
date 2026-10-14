@@ -2,7 +2,7 @@
  'use strict';
  const T=ToDoCore,panel=$('todoPanel'),icons={pending:'○',in_progress:'◷',completed:'✓',canceled:'×',postponed:'↗'};
  const views={today:'Hoje',tomorrow:'Amanhã',next:'Próximos',history:'Histórico'};
- let currentView='today',nextDate=T.shift(T.day(new Date(), 'America/Sao_Paulo'),2),selectedId=null,formMode=null,busy=false,connection=null,error='',nextPoll=0,calendarDraft=null,lastRenderedDay=null;
+ let currentView='today',nextDate=T.shift(T.day(new Date(), 'America/Sao_Paulo'),2),selectedId=null,formMode=null,busy=false,connection=null,error='',calendarDraft=null,lastRenderedDay=null;
  const data=()=>state.todo||T.seed(),nowDay=()=>T.day(new Date(),data().timeZone),available=()=>window.ConstanciaCalendar?.available();
  const niceDate=d=>new Date(d+'T12:00:00Z').toLocaleDateString('pt-BR',{day:'numeric',month:'short',timeZone:'UTC'});
  const when=e=>e.allDay?'Dia inteiro':T.localTime(e.start,data().timeZone)+'–'+T.localTime(e.end,data().timeZone);
@@ -22,7 +22,7 @@
  let preparing=null;
  async function preparePreferences(changes={}){
   if(preparing)return false;
-  preparing=(async()=>{try{if(window.SleepCore&&!await ensureStructureProtection())return false;const raw=localStorage.getItem(STORAGE);if(raw!==null&&window.ConstanciaRecovery&&await ConstanciaRecovery.read(RECOVERY)===null)await ConstanciaRecovery.save(RECOVERY,raw);structureProtected=true;return mutate(t=>{t.preferences={...t.preferences,carryoverSince:t.preferences?.carryoverSince||nowDay(),...changes};});}catch(e){toast('Não foi possível proteger seu histórico. A alteração não foi salva.');return false;}})();
+  preparing=(async()=>{try{if(window.SleepCore&&!await ensureStructureProtection())return false;const raw=historyStorage.getItem(STORAGE);if(raw!==null&&window.ConstanciaRecovery&&await ConstanciaRecovery.read(RECOVERY)===null)await ConstanciaRecovery.save(RECOVERY,raw);structureProtected=true;return mutate(t=>{t.preferences={...t.preferences,carryoverSince:t.preferences?.carryoverSince||nowDay(),...changes};});}catch(e){toast('Não foi possível proteger seu histórico. A alteração não foi salva.');return false;}})();
   try{return await preparing;}finally{preparing=null;}
  }
  function calendarPicker(){const cs=calendars().filter(c=>c.id!=='primary'||!calendars().some(x=>x.primary&&x.id!=='primary')),ids=calendarDraft||displayData().preferences.calendarIds;return `<details class="todo-calendars" id="todoCalendarPicker"><summary>Agendas · ${cs.filter(c=>ids.includes(c.id)).length} ${cs.filter(c=>ids.includes(c.id)).length===1?'selecionada':'selecionadas'} <span>Escolher agendas</span></summary><form id="todoCalendarsForm"><p class="muted">Escolha o que aparece nas listas e no balanço. Os registros das outras agendas continuam guardados.</p><div class="todo-calendar-options">${cs.map(c=>`<label><input type="checkbox" name="calendar" value="${esc(c.id)}" ${ids.includes(c.id)?'checked':''}><span>${esc(c.summary)}${c.primary?' · principal':''}</span></label>`).join('')}</div>${cs.length?'<button class="primary" type="submit">Salvar seleção</button>':'<p>Conecte ou sincronize o Google para carregar suas agendas.</p>'}<p class="todo-error" id="todoCalendarsError" role="alert"></p></form></details>`;}
@@ -47,9 +47,9 @@
  async function synchronize(manual=false){
   if(busy)return;if(!available()){if(manual){$('accountOpen').click();toast('Entre na sua conta e vincule o histórico para sincronizar a agenda.');}return;}if(!navigator.onLine){if(manual)toast('Salvo neste aparelho. A agenda será atualizada quando a conexão voltar.');return;}
   busy=true;error='';renderTodo();
-  try{connection={...connection,...await invoke('status')};if(connection.configured&&connection.connected&&!connection.reconnect){if(!connection.calendars?.length||manual){const catalog=await invoke('calendars');if(catalog.busy){connection.partial=true;return;}connection={...connection,...catalog};renderTodo();}const result=await invoke('sync',{date:currentView==='next'?nextDate:nowDay()});connection={...connection,...result};if(result.busy)error='Uma sincronização já está em andamento. Tente novamente em instantes.';}}
+  try{connection={...connection,...await invoke('status')};if(connection.configured&&connection.connected&&!connection.reconnect){if(!connection.calendars?.length||manual){const catalog=await invoke('calendars');if(catalog.busy){connection.partial=true;return;}connection={...connection,...catalog};renderTodo();}const result=await invoke('sync',{date:currentView==='next'?nextDate:nowDay(),force:manual});connection={...connection,...result};if(result.busy)error='Uma sincronização já está em andamento. Tente novamente em instantes.';}}
   catch(e){if(manual||connection?.connected)error=e.message;}
-  finally{busy=false;nextPoll=Date.now()+(connection?.partial?3000:60000);renderTodo();}
+  finally{busy=false;renderTodo();}
  }
  async function connect(){
   try{if(location.protocol==='file:')throw Error('Abra o aplicativo pelo site ou pela prévia local para conectar a agenda.');const result=await invoke('connect',{returnUrl:location.origin+location.pathname});location.assign(result.url);}
@@ -79,11 +79,11 @@
  panel.addEventListener('keydown',e=>{const tab=e.target.closest('[role=tab]');if(!tab||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const keys=Object.keys(views),at=keys.indexOf(currentView);currentView=e.key==='Home'?keys[0]:e.key==='End'?keys.at(-1):keys[(at+(e.key==='ArrowRight'?1:-1)+keys.length)%keys.length];renderTodo();$('todoView-'+currentView).focus();});
  $('todoDetails').addEventListener('click',e=>{const s=e.target.closest('[data-todo-status]'),r=e.target.closest('[data-todo-resolve]');if(s){const status=s.dataset.todoStatus;if(status==='postponed'){openForm(selectedId,'postpone');return;}mutate(t=>T.setStatus(t,selectedId,status));renderDetails();$('todoDetails').querySelector(`[data-todo-status="${status}"]`)?.focus();}if(r){mutate(t=>T.resolve(t,selectedId,r.dataset.todoResolve));synchronize(true);}});
  window.renderTodo=renderTodo;
- window.addEventListener('constancia:account',()=>{calendarDraft=null;connection=null;nextPoll=0;renderTodo();if(available())setTimeout(()=>synchronize(false),100);});
- window.addEventListener('constancia:area',e=>{if(e.detail==='todo'&&Date.now()>=nextPoll)synchronize(false);});
- window.addEventListener('constancia:calendar-resume',()=>{nextPoll=0;renderTodo();if(available())synchronize(false);});
- window.addEventListener('online',()=>synchronize(false));window.addEventListener('focus',()=>{renderTodo();if(Date.now()>=nextPoll)synchronize(false);});
- setInterval(()=>{if(document.hidden)return;if(nowDay()!==lastRenderedDay)renderTodo();if(available()&&Date.now()>=nextPoll)synchronize(false);},3000);
+ window.addEventListener('constancia:account',()=>{calendarDraft=null;connection=null;renderTodo();if(available())setTimeout(()=>synchronize(false),100);});
+ window.addEventListener('constancia:area',e=>{if(e.detail==='todo')synchronize(false);});
+ window.addEventListener('constancia:calendar-resume',()=>{renderTodo();if(available())synchronize(false);});
+ window.addEventListener('focus',renderTodo);window.addEventListener('constancia:calendar-updated',e=>{connection={...connection,...e.detail};error='';renderTodo();});window.addEventListener('constancia:calendar-error',e=>{error=e.detail;renderTodo();});
+ setInterval(()=>{if(document.hidden)return;if(nowDay()!==lastRenderedDay)renderTodo();},60000);
  const result=new URL(location.href).searchParams.get('calendar');if(result){error=result==='connected'?'':'A conexão não foi concluída. Tente novamente.';history.replaceState(null,'',location.pathname+'#todo');}
  renderTodo();
  if(!data().preferences?.carryoverSince&&!recoveryRequired)preparePreferences();

@@ -1,11 +1,11 @@
-const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
+const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1',historyStorage=window.ConstanciaHistory||localStorage;
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY=window.SleepCore?'constancia.recovery.before-sleep-v7':'constancia.recovery.before-todo-preferences-v6';
+const RECOVERY=window.ConstanciaHistory?'constancia.recovery.before-mobile-storage-v8':window.SleepCore?'constancia.recovery.before-sleep-v7':'constancia.recovery.before-todo-preferences-v6';
 let protectionPromise=null,migrationPending=false;
 try{
- const saved=localStorage.getItem(STORAGE);savedRevision=saved;
+ const saved=historyStorage.getItem(STORAGE);savedRevision=saved;
  try{state=saved?H.validate(JSON.parse(saved)):initial();}catch(error){Persistence.protect(localStorage,RECOVERY,saved);throw error}let migrated=false;
  // A current-format history needs no migration copy; duplicating large histories can exhaust storage.
  if(!window.SleepCore&&(state.body===undefined||state.training===undefined||state.todo===undefined))Persistence.protect(localStorage,RECOVERY,saved);
@@ -14,14 +14,14 @@ try{
  if(state.todo===undefined){state.todo=ToDoCore.seed();migrated=true}
  if(window.SleepCore&&state.sleep===undefined){state.sleep=SleepCore.seed();migrated=true}
  if(migrated&&window.SleepCore)migrationPending=true;
- else if(migrated){const serialized=JSON.stringify(state);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;}
+ else if(migrated){const serialized=JSON.stringify(state);historyStorage.setItem(STORAGE,serialized);savedRevision=serialized;}
 }catch(e){state=initial();state.body=Body.seed();state.training=Training.seed();recoveryRequired=true;setTimeout(()=>toast('Os dados originais foram mantidos. Faça um backup e restaure um arquivo válido antes de registrar.'),100)}
 let structureProtected=!window.SleepCore&&(!window.ConstanciaRecovery||recoveryRequired||!!state.todo?.preferences?.carryoverSince);
 async function ensureStructureProtection(){
  if(structureProtected)return true;if(recoveryRequired)return false;if(protectionPromise)return protectionPromise;
- protectionPromise=(async()=>{try{const raw=localStorage.getItem(STORAGE);if(raw!==savedRevision)throw Error('Histórico atualizado em outra aba.');
+ protectionPromise=(async()=>{try{const raw=historyStorage.getItem(STORAGE);if(raw!==savedRevision)throw Error('Histórico atualizado em outra aba.');
  if(raw!==null){if(!window.ConstanciaRecovery)throw Error('Recuperação indisponível.');if(await ConstanciaRecovery.read(RECOVERY)===null)await ConstanciaRecovery.save(RECOVERY,raw);}
- if(localStorage.getItem(STORAGE)!==raw)throw Error('Histórico atualizado durante a proteção.');
+ if(historyStorage.getItem(STORAGE)!==raw)throw Error('Histórico atualizado durante a proteção.');
  structureProtected=true;if(migrationPending){migrationPending=false;if(!commit(Persistence.clone(state)))throw Error('Não foi possível concluir a migração.');}
  window.dispatchEvent(new CustomEvent('constancia:ready'));return true;
  }catch(e){structureProtected=false;toast('Não foi possível proteger o histórico antes da atualização. Baixe um backup antes de continuar.');return false;}})();
@@ -33,8 +33,8 @@ function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clea
 function commit(next,notify=true){try{
  if(!structureProtected){toast('Aguarde a proteção do histórico antes de salvar. Se a proteção falhar, faça um backup.');return false}
  H.validate(next);
- if(localStorage.getItem(STORAGE)!==savedRevision){toast('Outra aba alterou os dados. Recarregue para ver os registros atuais antes de salvar.');return false}
- const serialized=JSON.stringify(next);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();if(notify)window.dispatchEvent(new CustomEvent("constancia:change"));return true
+ if(historyStorage.getItem(STORAGE)!==savedRevision){toast('Outra aba alterou os dados. Recarregue para ver os registros atuais antes de salvar.');return false}
+ const serialized=JSON.stringify(next);historyStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();if(notify){if(window.ConstanciaHistory)ConstanciaHistory.settle().then(()=>window.dispatchEvent(new CustomEvent("constancia:change"))).catch(()=>{});else window.dispatchEvent(new CustomEvent("constancia:change"));}return true
 }catch(e){toast('Não foi possível salvar. Os registros anteriores foram mantidos; faça um backup.');return false}}
 function update(fn){if(recoveryRequired){toast('Restaure um backup para proteger os dados que não puderam ser lidos.');return false}const next=JSON.parse(JSON.stringify(state));fn(next);return commit(next)}
 function render(){
@@ -71,7 +71,7 @@ function changeMonth(n){const d=H.date(month+'-01');d.setMonth(d.getMonth()+n);m
 $('habitForm').onsubmit=e=>{e.preventDefault();const days=[...document.querySelectorAll('input[name=days]:checked')].map(x=>Number(x.value)),name=$('name').value.trim();if(!name||!days.length){toast('Dê um nome ao hábito e escolha pelo menos um dia.');return}const ok=update(s=>{const h={id:editing||crypto.randomUUID(),name,goal:$('goal').value.trim(),start:$('start').value,days};const i=s.habits.findIndex(x=>x.id===editing);if(i>=0)s.habits[i]={...s.habits[i],...h};else s.habits.push(h)});if(ok){$('editor').close();toast('Hábito salvo.')}};
 $('archive').onclick=()=>{if(update(s=>{s.habits.find(h=>h.id===editing).archivedOn=today})){$('editor').close();toast('Hábito arquivado. Seus registros foram preservados.')}};
 function downloadBackup(content,name){const blob=new Blob([content],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-$('export').onclick=()=>{downloadBackup(localStorage.getItem(STORAGE)||JSON.stringify(state,null,2),`constancia-${today}.json`);toast('Backup preparado para download.')};
+$('export').onclick=()=>{downloadBackup(historyStorage.getItem(STORAGE)||JSON.stringify(state,null,2),`constancia-${today}.json`);toast('Backup preparado para download.')};
 $('recoveryBackup').onclick=async()=>{const raw=window.ConstanciaRecovery?await ConstanciaRecovery.read(RECOVERY):localStorage.getItem(RECOVERY);if(!raw){toast('Não há uma cópia anterior nesta origem do navegador.');return}downloadBackup(raw,'constancia-antes-da-atualizacao.json');toast('Cópia anterior preparada para download.')};
 function prepareImport(){
  if(!pendingSource)return;
@@ -83,8 +83,8 @@ function prepareImport(){
 }
 $('importMode').onchange=prepareImport;
 $('restore').onclick=()=>$('import').click();$('import').onchange=async e=>{const f=e.target.files[0];if(!f)return;pending=null;pendingSource=null;try{if(f.size>15000000)throw Error('Arquivo grande demais.');const incoming=JSON.parse(await f.text());H.validate(incoming);pendingSource=incoming;$('importMode').value=recoveryRequired?'replace':'merge';prepareImport();$('restoreDialog').showModal()}catch(err){pending=null;pendingSource=null;toast('Esse arquivo não é um backup válido do Constância. Os dados atuais foram preservados.')}e.target.value=''};
-$('cancelRestore').onclick=()=>{pending=null;pendingSource=null;$('restoreDialog').close()};$('confirmRestore').onclick=()=>{if(!pending)return;try{const raw=localStorage.getItem(STORAGE);if(raw!==null)localStorage.setItem('constancia.recovery.before-restore',raw);if(pendingSource)localStorage.setItem('constancia.recovery.import-source',JSON.stringify(pendingSource));}catch{toast('Não foi possível proteger os dados anteriores. A restauração foi cancelada.');return;}if(commit(pending)){const replaced=$('importMode').value==='replace';recoveryRequired=false;pending=null;pendingSource=null;$('restoreDialog').close();toast(replaced?'Backup restaurado. Cópias dos históricos foram protegidas.':'Históricos reunidos. Os dados anteriores foram preservados.')}};
-window.addEventListener('storage',e=>{if(e.key===STORAGE&&e.newValue){try{const incoming=H.validate(JSON.parse(e.newValue));state=incoming;savedRevision=e.newValue;recoveryRequired=false;render()}catch{recoveryRequired=true;toast('Os dados de outra aba não puderam ser lidos. Os registros foram mantidos.')}}});
+$('cancelRestore').onclick=()=>{pending=null;pendingSource=null;$('restoreDialog').close()};$('confirmRestore').onclick=async()=>{if(!pending)return;try{const raw=historyStorage.getItem(STORAGE);if(window.ConstanciaRecovery){if(raw!==null)await ConstanciaRecovery.save('constancia.recovery.before-restore',raw);if(pendingSource)await ConstanciaRecovery.save('constancia.recovery.import-source',JSON.stringify(pendingSource));}else{if(raw!==null)localStorage.setItem('constancia.recovery.before-restore',raw);if(pendingSource)localStorage.setItem('constancia.recovery.import-source',JSON.stringify(pendingSource));}}catch{toast('Não foi possível proteger os dados anteriores. A restauração foi cancelada.');return;}if(commit(pending)){const replaced=$('importMode').value==='replace';recoveryRequired=false;pending=null;pendingSource=null;$('restoreDialog').close();toast(replaced?'Backup restaurado. Cópias dos históricos foram protegidas.':'Históricos reunidos. Os dados anteriores foram preservados.')}};
+window.addEventListener('storage',e=>{if(!window.ConstanciaHistory&&e.key===STORAGE&&e.newValue){try{const incoming=H.validate(JSON.parse(e.newValue));state=incoming;savedRevision=e.newValue;recoveryRequired=false;render()}catch{recoveryRequired=true;toast('Os dados de outra aba não puderam ser lidos. Os registros foram mantidos.')}}});
 window.addEventListener('focus',()=>{if(H.key(new Date())!==today)render()});render();
 
 $('past').onclick=()=>{ $('pastDate').max=today;$('pastDate').value=selected;$('pastHabit').innerHTML=state.habits.map(h=>`<option value="${h.id}">${esc(h.name)}${h.archivedOn?' (arquivado)':''}</option>`).join('');$('pastDialog').showModal() };
@@ -102,14 +102,17 @@ $('dayChoices').addEventListener('change',e=>{const input=e.target,id=input.data
 $('closeDay').onclick=$('dayDone').onclick=()=>$('dayDialog').close();
 $('dayNew').onclick=()=>{$('dayDialog').close();openEditor()};
 
-for(const [id,key,name]of [['beforeImportBackup','constancia.recovery.before-restore','constancia-antes-da-importacao.json'],['importSourceBackup','constancia.recovery.import-source','constancia-arquivo-importado.json']])$(id).onclick=()=>{const raw=localStorage.getItem(key);if(!raw){toast('Não há uma cópia desta importação neste navegador.');return}downloadBackup(raw,name);toast('Cópia de recuperação preparada.');};
+for(const [id,key,name]of [['beforeImportBackup','constancia.recovery.before-restore','constancia-antes-da-importacao.json'],['importSourceBackup','constancia.recovery.import-source','constancia-arquivo-importado.json']])$(id).onclick=async()=>{const raw=window.ConstanciaRecovery?await ConstanciaRecovery.read(key):localStorage.getItem(key);if(!raw){toast('Não há uma cópia desta importação neste navegador.');return}downloadBackup(raw,name);toast('Cópia de recuperação preparada.');};
 
 window.ConstanciaData={
  read:()=>Persistence.clone(state),
- blocked:()=>recoveryRequired||!structureProtected,
- apply:(next,expected)=>{if(recoveryRequired||!ConstanciaSyncCore.equal(state,expected))return false;return commit(H.validate(Persistence.clone(next)),false)},
+ blocked:()=>recoveryRequired||!structureProtected||!!window.ConstanciaHistory?.failure,
+ settled:()=>window.ConstanciaHistory?.settle(),
+ apply:(next,expected)=>{if(recoveryRequired||!ConstanciaSyncCore.equal(state,expected))return false;const ok=commit(H.validate(Persistence.clone(next)),false);return window.ConstanciaHistory&&ok?ConstanciaHistory.settle().then(()=>true):ok},
  protect:(key,value)=>window.ConstanciaRecovery?ConstanciaRecovery.save(key,JSON.stringify(value)):localStorage.setItem(key,JSON.stringify(value)),
  pristine:()=>{const clean=initial();clean.body=Body.seed();clean.training=Training.seed();clean.todo=ToDoCore.seed();if(window.SleepCore)clean.sleep=SleepCore.seed();const current=Persistence.clone(state);current.habits.forEach(h=>{h.start=today});if(current.todo?.preferences){delete current.todo.preferences.carryoverSince;if(!Object.keys(current.todo.preferences).length)delete current.todo.preferences;}return ConstanciaSyncCore.equal(current,clean)}
 };
 
 if(window.SleepCore&&!recoveryRequired)ensureStructureProtection();
+
+for(const kind of ['external','error'])window.addEventListener('constancia:history-'+kind,e=>{try{state=H.validate(JSON.parse(e.detail.raw));savedRevision=e.detail.raw;recoveryRequired=kind==='error';render();if(kind==='error')toast('Não foi possível confirmar a gravação. O histórico anterior foi mantido; faça um backup.');else window.dispatchEvent(new CustomEvent('constancia:change'));}catch{recoveryRequired=true;render();}});

@@ -21,8 +21,10 @@ test('HTTP auth, encrypted OAuth/PKCE, callback replay, token refresh and discon
      if(!connections.length)return ok([]);Object.assign(connections[0],JSON.parse(body));return ok(connections);
     }return ok(connections);
    }
+   if(u.pathname.endsWith('/constancia_change_notices'))return ok([{calendar_version:0,calendar_synced_version:0}]);
+   if(u.pathname.endsWith('/constancia_calendar_channels'))return ok([]);
    if(u.pathname.endsWith('/constancia_states'))return ok([{state:structuredClone(data),revision}]);
-   if(u.pathname.endsWith('/rpc/constancia_save')){const b=JSON.parse(body);assert.equal(b.owner_id,uid);assert.equal(headers.get('Authorization'),'Bearer valid-user');const saved=b.expected_revision===revision;if(saved){data=b.next_state;revision++;}return ok({saved,state:data,revision});}
+   if(u.pathname.endsWith('/rpc/constancia_save_compact')){const b=JSON.parse(body);assert.equal(b.owner_id,uid);assert.equal(headers.get('Authorization'),'Bearer valid-user');const saved=b.expected_revision===revision;if(saved){data=b.next_state;revision++;}return ok({saved,state:data,revision});}
   }
   if(u.hostname==='oauth2.googleapis.com'){const params=new URLSearchParams(body);assert.equal(params.get('client_secret'),secret);if(params.get('grant_type')==='refresh_token'){assert.equal(params.get('refresh_token'),refresh);refreshes++;return ok({access_token:access,expires_in:3600});}verifierSent=params.get('code_verifier');return ok({access_token:access,refresh_token:refresh,expires_in:0});}
   if(u.hostname==='www.googleapis.com'){
@@ -33,7 +35,7 @@ test('HTTP auth, encrypted OAuth/PKCE, callback replay, token refresh and discon
   throw Error('Unexpected network target '+url);
  };
  try{
-  let source=fs.readFileSync('supabase/functions/calendar/index.ts','utf8');source=source.replace("'./service.mjs'",JSON.stringify(pathToFileURL(require('node:path').resolve('supabase/functions/calendar/service.mjs')).href));
+  let source=fs.readFileSync('supabase/functions/calendar/index.ts','utf8');for(const module of ['service','notifications'])source=source.replace("'./"+module+".mjs'",JSON.stringify(pathToFileURL(require('node:path').resolve('supabase/functions/calendar/'+module+'.mjs')).href));
   const code=stripTypeScriptTypes(source),{handler}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
   const post=(action,extra={},headers={})=>handler(new Request('https://supabase-fake.invalid/functions/v1/calendar',{method:'POST',headers:{Authorization:'Bearer valid-user','Content-Type':'application/json',Origin:'http://127.0.0.1:8771',...headers},body:JSON.stringify({action,...extra})}));
   assert.equal((await post('status',{}, {Authorization:''})).status,401);
