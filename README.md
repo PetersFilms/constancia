@@ -22,7 +22,7 @@ Sair preserva o histórico local e sua associação à conta. Uma conta diferent
 
 ## Preservação e recuperação
 
-A chave `constancia.v1` permanece. A atualização guarda o conteúdo original em `constancia.recovery.before-mobile-sync-v4`, sem remover recuperações anteriores. Há cópias antes da vinculação, da primeira sincronização e de conflitos. Novas cópias de sincronização ficam no IndexedDB local, com JSON completo, e as cópias anteriores permanecem. Minha conta permite baixar a cópia anterior deste aparelho. Antes da primeira atualização de um histórico sincronizado em cada dia, o banco guarda uma cópia diária privada.
+A chave `constancia.v1` permanece. A atualização guarda o conteúdo original em `constancia.recovery.before-todo-preferences-v6`, sem remover recuperações anteriores. Há cópias antes da vinculação, da primeira sincronização e de conflitos. Novas cópias de sincronização ficam no IndexedDB local, com JSON completo, e as cópias anteriores permanecem. Minha conta permite baixar a cópia anterior deste aparelho. Antes da primeira atualização de um histórico sincronizado em cada dia, o banco guarda uma cópia diária privada.
 
 **Backup** baixa o histórico deste aparelho. **Minha conta** oferece a cópia atual da nuvem e a última recuperação diária. **Restaurar** reúne históricos por padrão, preservando campos e áreas futuras. Arquivo local, localhost e GitHub Pages são origens diferentes: importe um backup na origem online para levar um histórico local antigo para a conta. Nenhum histórico pessoal faz parte do repositório.
 
@@ -42,7 +42,7 @@ A interface usa fundo branco gelo `#F3F6F7`, cartões quase brancos `#FCFDFD`, t
 
 ## To-Do e Google Agenda
 
-A nova aba acompanha compromissos em Hoje, Pendências, Amanhã, Próximos e Histórico, com conclusão direta, cancelamento, adiamento, histórico e indicadores. Pendências mostra somente os últimos 90 dias dentro do ano corrente, sem excluir registros antigos. Estado local em `state.todo`, preservado nos backups e na sincronização existente.
+A aba acompanha compromissos em Hoje, Amanhã, Próximos e Histórico, com conclusão direta, cancelamento, adiamento, histórico e indicadores. Escolher agendas filtra as listas e o balanço anual; começa pela principal e permite selecionar várias, preservando os registros das demais. Itens não concluídos continuam no dia seguinte com aviso, mantendo as datas originais no Google Agenda. A continuidade começa no dia de ativação desta revisão, sem trazer o acúmulo anterior. Preferências e recuperação são preservadas entre aparelhos. Estado local em `state.todo`, preservado nos backups e na sincronização existente.
 
 O backend OAuth/Calendar é a função `calendar` no Supabase. Credenciais cifradas ficam fora do JSON do usuário e não são expostas ao cliente. A conexão exige um cliente OAuth Google e secrets do backend; o aplicativo informa quando essa configuração está pendente.
 
