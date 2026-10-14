@@ -2,7 +2,7 @@
 
 ## Resultado
 
-Implementação no projeto existente, com PWA estática, identidade visual clara e fonte Pogonia, armazenamento local e conta privada existentes. Publicação preparada na versão de recursos 46. Nenhuma noite fictícia foi salva na conta real: dados de registro e gráficos foram exercitados somente numa origem isolada sem login.
+Implementação no projeto existente, com PWA estática, identidade visual clara e fonte Pogonia, armazenamento local e conta privada existentes. Publicação preparada na versão de recursos 47. Nenhuma noite fictícia foi salva na conta real: dados de registro e gráficos foram exercitados somente numa origem isolada sem login.
 
 ## Arquivos
 
