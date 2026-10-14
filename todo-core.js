@@ -95,8 +95,9 @@
   return logicalItems(todo,true).filter(i=>{
    if(!calendarAllowed(i.google?.calendarId))return false;
    const d=startDay(i,z);
-   if(name==='history')return i.sync?.externalDeleted||['completed','canceled','postponed'].includes(i.execution.status)||i.postponeCount>0;
-   if(i.sync?.externalDeleted||i.execution.status==='canceled')return false;
+   if(i.sync?.externalDeleted)return false;
+   if(name==='history')return ['completed','canceled','postponed'].includes(i.execution.status)||i.postponeCount>0;
+   if(i.execution.status==='canceled')return false;
    if(name==='pending')return active(i)&&d>=cutoff&&d<today&&!onDay(i,today,z);
    if(name==='today')return onDay(i,today,z)||carryover(todo,i,today);
    if(name==='tomorrow')return onDay(i,shift(today,1),z)||carryover(todo,i,shift(today,1));
@@ -105,7 +106,7 @@
  }
  function metrics(todo,today){
   const first=today.slice(0,4)+'-01-01',cutoff=pendingSince(today),inYear=d=>d>=first&&d<=today;
-  const items=logicalItems(todo,true).filter(i=>calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
+  const items=logicalItems(todo,true).filter(i=>!i.sync?.externalDeleted&&calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
   return {planned:items.length,completed:done,pending:eligible.filter(i=>active(i)&&(startDay(i,todo.timeZone)>=cutoff||onDay(i,today,todo.timeZone))).length,canceled:items.filter(i=>!i.sync?.externalDeleted&&i.execution.status==='canceled').length,postponed:items.filter(i=>i.postponeCount>0).length,reschedules:items.reduce((n,i)=>n+i.postponeCount,0),backlog:view(todo,'pending',today).length,eligible:eligible.length,rate:eligible.length?Math.round(done/eligible.length*100):null};
  }
  function providerEvent(i){const p=i.pending;return {summary:(p.canceled?'[Cancelado] ':'')+p.event.title,description:p.event.description,start:p.event.allDay?{date:p.event.start}:{dateTime:p.event.start,timeZone:p.event.timeZone},end:p.event.allDay?{date:p.event.end}:{dateTime:p.event.end,timeZone:p.event.timeZone},extendedProperties:{private:{constanciaId:i.id,constanciaOrigin:i.origin,constanciaCanceled:String(p.canceled)}}};}
