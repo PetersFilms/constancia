@@ -17,7 +17,7 @@
   if(!connection.connected)return 'Conecte sua conta Google para importar e atualizar compromissos.';
   return 'Google Agenda conectado · '+(connection.partial?'importando em etapas; seus registros estão salvos':connection.lastSync?'última atualização '+labelTime(connection.lastSync):'pronto para sincronizar');
  }
- function calendars(){const listed=connection?.calendars||[],known=new Map(listed.filter(c=>T.calendarAllowed(c.id)).map(c=>[c.id,c]));for(const i of data().items){const id=i.google?.calendarId;if(id&&T.calendarAllowed(id)&&!known.has(id))known.set(id,{id,primary:!!i.google.primary,summary:data().preferences?.calendarNames?.[id]||(i.google.primary||id==='primary'?'Minha agenda principal':'Agenda importada'),accessRole:i.google.writable?'writer':'reader'});}return [...known.values()];}
+ function calendars(){const listed=connection?.calendars||[],known=new Map(listed.filter(c=>T.calendarAllowed(c.id)).map(c=>[c.id,c]));for(const i of data().items){const id=i.google?.calendarId;if(id&&T.calendarAllowed(id)&&!known.has(id))known.set(id,{id,primary:!!i.google.primary||id===connection?.accountId,summary:data().preferences?.calendarNames?.[id]||(i.google.primary||id==='primary'||id===connection?.accountId?'Minha agenda principal':'Agenda importada'),accessRole:i.google.writable?'writer':'reader'});}return [...known.values()];}
  function displayData(){const t=data(),cs=calendars();let ids=t.preferences?.calendarIds;if(!Array.isArray(ids)){ids=cs.filter(c=>c.primary||c.id==='primary').map(c=>c.id);if(!ids.length)ids=['primary'];}if(cs.some(c=>c.primary&&ids.includes(c.id))&&!ids.includes('primary'))ids=[...ids,'primary'];return {...t,preferences:{...t.preferences,calendarIds:ids}};}
  let preparing=null;
  async function preparePreferences(changes={}){
@@ -45,7 +45,7 @@
  async function synchronize(manual=false){
   if(busy)return;if(!available()){if(manual){$('accountOpen').click();toast('Entre na sua conta e vincule o histórico para sincronizar a agenda.');}return;}if(!navigator.onLine){if(manual)toast('Salvo neste aparelho. A agenda será atualizada quando a conexão voltar.');return;}
   busy=true;error='';renderTodo();
-  try{connection={...connection,...await invoke('status')};if(connection.configured&&connection.connected&&!connection.reconnect){const result=await invoke('sync',{date:currentView==='next'?nextDate:nowDay()});connection={...connection,...result};if(result.busy)error='Uma sincronização já está em andamento. Tente novamente em instantes.';}}
+  try{connection={...connection,...await invoke('status')};if(connection.configured&&connection.connected&&!connection.reconnect){if(!connection.calendars?.length||manual){const catalog=await invoke('calendars');if(catalog.busy){connection.partial=true;return;}connection={...connection,...catalog};renderTodo();}const result=await invoke('sync',{date:currentView==='next'?nextDate:nowDay()});connection={...connection,...result};if(result.busy)error='Uma sincronização já está em andamento. Tente novamente em instantes.';}}
   catch(e){if(manual||connection?.connected)error=e.message;}
   finally{busy=false;nextPoll=Date.now()+(connection?.partial?3000:60000);renderTodo();}
  }

@@ -27,7 +27,7 @@ test('HTTP auth, encrypted OAuth/PKCE, callback replay, token refresh and discon
   if(u.hostname==='oauth2.googleapis.com'){const params=new URLSearchParams(body);assert.equal(params.get('client_secret'),secret);if(params.get('grant_type')==='refresh_token'){assert.equal(params.get('refresh_token'),refresh);refreshes++;return ok({access_token:access,expires_in:3600});}verifierSent=params.get('code_verifier');return ok({access_token:access,refresh_token:refresh,expires_in:0});}
   if(u.hostname==='www.googleapis.com'){
    assert.equal(new Headers(options.headers).get('Authorization'),'Bearer '+access);
-   if(u.pathname.endsWith('/calendarList'))return ok({items:[{id:'google-account',summary:'Teste',primary:true,accessRole:'owner',timeZone:'America/Sao_Paulo'}]});
+   if(u.pathname.endsWith('/calendarList'))return ok({items:[{id:'google-account',summary:'Teste',summaryOverride:'Pessoal',primary:true,accessRole:'owner',timeZone:'America/Sao_Paulo'},{id:'work',summary:'Trabalho',primary:false,accessRole:'reader',timeZone:'America/Sao_Paulo'},{id:'brazil#holiday@group.v.calendar.google.com',summary:'Feriados'}]});
    if(u.pathname.endsWith('/events'))return ok({items:[],nextSyncToken:'token'});
   }
   throw Error('Unexpected network target '+url);
@@ -45,6 +45,7 @@ test('HTTP auth, encrypted OAuth/PKCE, callback replay, token refresh and discon
   assert.equal(connections.length,1);connections[0].lease_until='1970-01-01T00:00:00Z';assert(!JSON.stringify(connections).includes(refresh));assert(!JSON.stringify(connections).includes(access));
   assert.equal((await handler(callback)).status,400);
   const status=await (await post('status')).json();assert.equal(status.connected,true);assert(!JSON.stringify(status).includes('token_box'));assert(!JSON.stringify(status).includes(refresh));
+  assert.equal((await post('calendars',{}, {Authorization:''})).status,401);assert.equal((await post('calendars',{}, {Origin:'https://evil.invalid'})).status,403);const prior=structuredClone(data),priorRevision=revision;const requestsBefore=seen.length;result=await (await post('calendars')).json();assert.deepEqual(result.calendars.map(c=>c.summary),['Pessoal','Trabalho']);assert.equal(result.calendars[0].primary,true);assert.equal(result.accountId,'google-account');assert.equal(result.token_box,undefined);assert(!JSON.stringify(result).includes(access));assert.deepEqual(data,prior);assert.equal(revision,priorRevision);assert(!seen.slice(requestsBefore).some(x=>x.url.includes('/events')));assert.equal(connections[0].lease_id,null);connections[0].lease_until=new Date(Date.now()+60000).toISOString();assert.equal((await (await post('calendars')).json()).busy,true);connections[0].lease_until='1970-01-01T00:00:00Z';
   result=await (await post('sync',{date:'2026-10-13'})).json();assert.equal(result.connected,true);assert.equal(refreshes,1);assert.equal(connections[0].lease_id,null);assert.equal(data.habits.length,0);
   const before=structuredClone(data);result=await (await post('disconnect')).json();assert.equal(result.connected,false);assert.deepEqual(data,before);assert.equal(connections.length,0);assert(!seen.some(x=>x.url.includes('googleapis.com/calendar')&&x.method==='DELETE'));
   delete env.GOOGLE_CLIENT_SECRET;result=await (await post('connect',{returnUrl:'http://127.0.0.1:8771/'})).json();assert.match(result.error,/configurar/);
