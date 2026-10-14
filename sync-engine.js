@@ -10,7 +10,7 @@
   link(user,pristine){if(this.meta.owner&&this.meta.owner!==user)throw Error('Entre na conta original deste histórico.');const baseline=this.data.read(),gen=this.generation,finish=()=>{if(gen!==this.generation||this.meta.owner&&this.meta.owner!==user)throw Error('A conta mudou durante a vinculação.');this.persist({...this.meta,owner:user,firstMode:pristine?'cloud':'import',joinBaseline:baseline});};const protection=this.data.protect('constancia.recovery.before-account-link',baseline);return protection?.then?protection.then(finish):finish();}
   cancel(){this.generation++;this.conflict=null;}
   flush(user,preference){
-   if(this.running)return this.flushingUser===user&&!preference?this.inflight:Promise.resolve(false);
+   if(this.running){if(this.flushingUser!==user)return Promise.resolve(false);if(!preference)return this.inflight;const generation=this.generation;return this.inflight.then(()=>generation===this.generation&&this.owned(user)?this.flush(user,preference):false);}
    this.flushingUser=user;return this.inflight=this.run(user,preference);
   }
   async run(user,preference){

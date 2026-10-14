@@ -1,10 +1,10 @@
 (function(){
- const areas={habits:'habitos',todo:'todo',training:'treinos',body:'corpo'};
+ const areas={habits:'habitos',todo:'todo',training:'treinos',body:'corpo',sleep:'sono'};
  function show(area){
   if(!areas[area])area='habits';
   for(const key of Object.keys(areas)){document.getElementById(key+'Panel').hidden=key!==area;document.getElementById(key+'Tab').setAttribute('aria-pressed',String(key===area));}
   history.replaceState(null,'','#'+areas[area]);
-  if(area==='todo')window.renderTodo?.();if(area==='training')window.renderTraining?.();if(area==='body')window.renderBody?.();
+  if(area==='sleep')window.renderSleep?.();if(area==='todo')window.renderTodo?.();if(area==='training')window.renderTraining?.();if(area==='body')window.renderBody?.();
   window.dispatchEvent(new CustomEvent('constancia:area',{detail:area}));
  }
  for(const key of Object.keys(areas))document.getElementById(key+'Tab').onclick=()=>show(key);

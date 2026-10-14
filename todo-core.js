@@ -25,6 +25,8 @@
   return new Date(v).toISOString();
  }
  function schedule(e){
+  if(e?.recurrence!==undefined&&(!Array.isArray(e.recurrence)||e.recurrence.length>8||e.recurrence.some(r=>typeof r!=='string'||r.length>2000||!/^(RRULE|EXRULE|RDATE|EXDATE):/.test(r))))throw Error('Recorrência inválida.');
+  if(e?.reminders!==undefined&&(!e.reminders||typeof e.reminders.useDefault!=='boolean'||!Array.isArray(e.reminders.overrides)||e.reminders.overrides.length>5||e.reminders.overrides.some(r=>!['popup','email'].includes(r.method)||!Number.isInteger(r.minutes)||r.minutes<0||r.minutes>40320)))throw Error('Lembrete inválido.');
   if(!e||!zone(e.timeZone)||typeof e.title!=='string'||!e.title.trim()||e.title.length>2000||typeof e.description!=='string'||e.description.length>100000)throw Error('Dados do compromisso inválidos.');
   if(e.allDay){if(!validDay(e.start)||!validDay(e.end)||e.end<=e.start)throw Error('Datas de dia inteiro inválidas.');}
   else if(!instant(e.start)||!instant(e.end)||Date.parse(e.end)<=Date.parse(e.start))throw Error('O término deve ocorrer depois do início.');
@@ -39,6 +41,7 @@
    for(const k of ['completedAt','canceledAt','startedAt'])if(i.execution[k]!=null&&!instant(i.execution[k]))throw Error('Registro de execução inválido.');
    if(i.execution.status==='completed'&&!i.execution.completedAt)throw Error('Conclusão sem horário real.');
    if(i.pending&&(!i.pending.operationId||!['create','patch'].includes(i.pending.kind)))throw Error('Operação de agenda inválida.');
+   if(i.pending?.dependsOn&&(!Array.isArray(i.pending.dependsOn)||i.pending.dependsOn.length>100||i.pending.dependsOn.some(id=>typeof id!=='string'||! /^[a-zA-Z0-9-]{1,100}$/.test(id))))throw Error('Dependência de sincronização inválida.');
    if(i.pending)schedule(i.pending.event);
   }
   const auditIds=new Set();for(const h of todo.history){if(!h||typeof h.id!=='string'||auditIds.has(h.id)||typeof h.itemId!=='string'||!instant(h.at)||typeof h.type!=='string')throw Error('Auditoria do To-Do inválida.');auditIds.add(h.id);}
@@ -48,7 +51,7 @@
  function queue(item,baseline=item.event){
   if(item.sync?.externalDeleted)throw Error('Este evento foi excluído na agenda. Seu histórico foi preservado.');
   const old=item.pending;
-  item.pending={operationId:uuid(),kind:item.google?.eventId?'patch':'create',baseEtag:item.google?.etag||null,baseEvent:copy(old?.baseEvent||baseline),baseCanceled:old?.baseCanceled??item.google?.canceledMarker??false,event:copy(item.event),accountId:item.google?.accountId||null,canceled:item.execution.status==='canceled'};
+  item.pending={...(old?.dependsOn?{dependsOn:copy(old.dependsOn)}:{}),operationId:uuid(),kind:item.google?.eventId?'patch':'create',baseEtag:item.google?.etag||null,baseEvent:copy(old?.baseEvent||baseline),baseCanceled:old?.baseCanceled??item.google?.canceledMarker??false,event:copy(item.event),accountId:item.google?.accountId||null,canceled:item.execution.status==='canceled'};
   item.sync={...item.sync,state:'pending'};delete item.conflict;
  }
  function create(todo,event,at=new Date().toISOString(),calendarId='primary',accountId=null){
@@ -88,14 +91,14 @@
  const startDay=(i,z)=>i.event.allDay?i.event.start:day(i.event.start,z);
  function onDay(i,d,z){const a=startDay(i,z),b=i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);return a<=d&&b>=d;}
  const endDay=(i,z)=>i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);
- function carryover(todo,i,target){return active(i)&&!!todo.preferences?.carryoverSince&&endDay(i,todo.timeZone)>=todo.preferences.carryoverSince&&endDay(i,todo.timeZone)<target;}
+ function carryover(todo,i,target){return !i.sleepPlanId&&!i.seriesMaster&&active(i)&&!!todo.preferences?.carryoverSince&&endDay(i,todo.timeZone)>=todo.preferences.carryoverSince&&endDay(i,todo.timeZone)<target;}
  const pendingSince=today=>[today.slice(0,4)+'-01-01',shift(today,-90)].sort().at(-1);
  function view(todo,name,today,nextDate=today){
   const z=todo.timeZone,cutoff=pendingSince(today);
   return logicalItems(todo,true).filter(i=>{
    if(!calendarAllowed(i.google?.calendarId))return false;
    const d=startDay(i,z);
-   if(i.sync?.externalDeleted)return false;
+   if(i.sync?.externalDeleted||i.seriesMaster)return false;
    if(name==='history')return ['completed','canceled','postponed'].includes(i.execution.status)||i.postponeCount>0;
    if(i.execution.status==='canceled')return false;
    if(name==='pending')return active(i)&&d>=cutoff&&d<today&&!onDay(i,today,z);
@@ -106,21 +109,24 @@
  }
  function metrics(todo,today){
   const first=today.slice(0,4)+'-01-01',cutoff=pendingSince(today),inYear=d=>d>=first&&d<=today;
-  const items=logicalItems(todo,true).filter(i=>!i.sync?.externalDeleted&&calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
+  const items=logicalItems(todo,true).filter(i=>!i.seriesMaster&&!i.sync?.externalDeleted&&calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
   return {planned:items.length,completed:done,pending:eligible.filter(i=>active(i)&&(startDay(i,todo.timeZone)>=cutoff||onDay(i,today,todo.timeZone))).length,canceled:items.filter(i=>!i.sync?.externalDeleted&&i.execution.status==='canceled').length,postponed:items.filter(i=>i.postponeCount>0).length,reschedules:items.reduce((n,i)=>n+i.postponeCount,0),backlog:view(todo,'pending',today).length,eligible:eligible.length,rate:eligible.length?Math.round(done/eligible.length*100):null};
  }
- function providerEvent(i){const p=i.pending;return {summary:(p.canceled?'[Cancelado] ':'')+p.event.title,description:p.event.description,start:p.event.allDay?{date:p.event.start}:{dateTime:p.event.start,timeZone:p.event.timeZone},end:p.event.allDay?{date:p.event.end}:{dateTime:p.event.end,timeZone:p.event.timeZone},extendedProperties:{private:{constanciaId:i.id,constanciaOrigin:i.origin,constanciaCanceled:String(p.canceled)}}};}
- function sameEvent(a,b){return ['title','description','allDay'].every(k=>a[k]===b[k])&&(a.allDay?a.start===b.start&&a.end===b.end:Date.parse(a.start)===Date.parse(b.start)&&Date.parse(a.end)===Date.parse(b.end));}
+ function providerEvent(i){const p=i.pending;return {summary:(p.canceled?'[Cancelado] ':'')+p.event.title,description:p.event.description,start:p.event.allDay?{date:p.event.start}:{dateTime:p.event.start,timeZone:p.event.timeZone},end:p.event.allDay?{date:p.event.end}:{dateTime:p.event.end,timeZone:p.event.timeZone},...(p.event.recurrence?{recurrence:p.event.recurrence}:{}),...(p.event.reminders?{reminders:p.event.reminders}:{}),extendedProperties:{private:{constanciaId:i.id,constanciaOrigin:i.origin,constanciaCanceled:String(p.canceled),...(i.sleepPlanId?{constanciaSleepPlan:i.sleepPlanId}:{})}}};}
+ function sameEvent(a,b){const recurrence=e=>(e.recurrence||[]).map(r=>r.split(';').sort().join(';')).sort().join('|'),reminders=e=>e.reminders?.useDefault===false?'custom|'+(e.reminders.overrides||[]).map(r=>r.method+':'+r.minutes).sort().join('|'):'default';return recurrence(a)===recurrence(b)&&reminders(a)===reminders(b)&&['title','description','allDay'].every(k=>a[k]===b[k])&&(a.allDay?a.start===b.start&&a.end===b.end:Date.parse(a.start)===Date.parse(b.start)&&Date.parse(a.end)===Date.parse(b.end));}
  function importEvent(todo,calendar,raw,id,at=new Date().toISOString()){
   let item=todo.items.find(i=>i.google?.calendarId===calendar.id&&i.google?.eventId===raw.id);
   if(!item&&raw.extendedProperties?.private?.constanciaId)item=todo.items.find(i=>i.id===raw.extendedProperties.private.constanciaId&&i.origin==='constancia'&&(!i.google.eventId||i.google.eventId===raw.id)&&(i.google.calendarId==='primary'&&calendar.primary||i.google.calendarId===calendar.id));
   if(raw.status==='cancelled'){
-   const victims=item?[item]:raw.recurringEventId?[]:todo.items.filter(i=>i.google?.calendarId===calendar.id&&i.google?.recurringEventId===raw.id);
+   const victims=raw.recurringEventId?(item?[item]:[]):todo.items.filter(i=>i.google?.calendarId===calendar.id&&(i.google?.eventId===raw.id||i.google?.recurringEventId===raw.id));
    for(const v of victims){if(!v.sync.externalDeleted){v.sync={...v.sync,externalDeleted:true,state:v.pending?'conflict':'synced',lastSync:at};if(v.pending)v.conflict={local:copy(v.pending.event),remote:null,reason:'deleted'};audit(todo,v,'external_deleted',v.event,{googleId:raw.id},at,'deleted-'+v.id+'-'+String(raw.updated||'deleted').replace(/[^a-zA-Z0-9]/g,''));}}return item;
   }
   if(!raw.start||!raw.end)return item;
-  const marker=raw.extendedProperties?.private||{},event={title:String(raw.summary||'Sem título').replace(marker.constanciaCanceled==='true'?/^\[Cancelado\]\s*/:/^$/,''),description:String(raw.description||''),start:raw.start.date||raw.start.dateTime,end:raw.end.date||raw.end.dateTime,allDay:!!raw.start.date,timeZone:raw.start.timeZone||calendar.timeZone||todo.timeZone};schedule(event);
+  const marker=raw.extendedProperties?.private||{},event={title:String(raw.summary||'Sem título').replace(marker.constanciaCanceled==='true'?/^\[Cancelado\]\s*/:/^$/,''),description:String(raw.description||''),start:raw.start.date||raw.start.dateTime,end:raw.end.date||raw.end.dateTime,allDay:!!raw.start.date,timeZone:raw.start.timeZone||calendar.timeZone||todo.timeZone,...(raw.recurrence?{recurrence:copy(raw.recurrence)}:{}),...(raw.reminders?{reminders:{...copy(raw.reminders),overrides:copy(raw.reminders.overrides||[])}}:{})};schedule(event);
   if(!item){item={id,origin:marker.constanciaOrigin==='constancia'?'constancia':'google',event:copy(event),original:copy(event),google:{},execution:{status:'pending',completedAt:null,canceledAt:null,cancelReason:null,startedAt:null},postponeCount:0,sync:{}};todo.items.push(item);audit(todo,item,'imported',{},event,at,'import-'+id);}
+  if(marker.constanciaSleepPlan){item.sleepPlanId=marker.constanciaSleepPlan;if(marker.constanciaCanceled==='true'&&item.execution.status!=='canceled')item.execution={...item.execution,status:'canceled',canceledAt:instant(raw.updated)?raw.updated:at};}if(raw.recurrence&&item.sleepPlanId)item.seriesMaster=true;
+  // Re-reading an unchanged event must not rewrite a multi-megabyte private history.
+  if(!item.pending&&!item.sync.externalDeleted&&raw.etag&&item.google.etag===raw.etag&&item.google.accountId===(calendar.accountId||item.google.accountId||null)&&item.google.primary===!!calendar.primary&&item.google.writable===['owner','writer'].includes(calendar.accessRole)&&item.google.iCalUID===(raw.iCalUID||item.google.iCalUID||null)&&sameEvent(item.event,event))return item;
   const before=copy(item.event);let conflict=false;
   if(item.pending){
    if(sameEvent(item.pending.event,event)&&item.pending.canceled===(marker.constanciaCanceled==='true'))delete item.pending;

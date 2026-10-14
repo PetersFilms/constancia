@@ -4,11 +4,13 @@
  const copy=x=>x===missing?missing:JSON.parse(JSON.stringify(x));
  function equal(a,b){if(a===missing||b===missing)return a===b;if(Array.isArray(a)&&Array.isArray(b))return a.length===b.length&&a.every((v,i)=>equal(v,b[i]));if(plain(a)&&plain(b)){const keys=Object.keys(a);return keys.length===Object.keys(b).length&&keys.every(k=>Object.hasOwn(b,k)&&equal(a[k],b[k]));}return a===b;}
  const norm=s=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLowerCase();
- const identity=path=>path==='habits'||path==='training.sessions'||path==='todo.items'||path==='todo.history'?'id':path==='body.weights'||path==='body.records'?'date':path==='training.exercises'||path==='training.workouts'?'name':null;
+ const identity=path=>path==='habits'||path==='training.sessions'||path==='todo.items'||path==='todo.history'||path==='sleep.plans'||path==='sleep.settingsVersions'||path==='sleep.history'?'id':path==='body.records'||path==='body.weights'||path==='sleep.records'?'date':path==='training.exercises'||path==='training.workouts'?'name':null;
  // Three-way merging recognizes removals. Sets and assessment records remain atomic.
  function reconcile(base,local,remote,prefer='local'){
   const conflicts=[];
   function merge(b,l,r,path,atomic=false){
+   if(path==='todo.preferences.carryoverSince'&&typeof l==='string'&&typeof r==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(l)&&/^\d{4}-\d{2}-\d{2}$/.test(r))return l<r?l:r;
+   if(path==='sleep.settings')atomic=true;
    if(path.startsWith('todo.items:')&&/\.(event|execution|pending)$/.test(path))atomic=true;
    if(equal(l,r))return copy(l);if(equal(l,b))return copy(r);if(equal(r,b))return copy(l);
    if(!atomic&&plain(l)&&plain(r)&&(plain(b)||b===missing)){

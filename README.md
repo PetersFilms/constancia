@@ -51,3 +51,11 @@ O backend OAuth/Calendar é a função `calendar` no Supabase. Credenciais cifra
 - [Relatório de implementação](docs/TODO-RELATORIO.md)
 
 `npm ci` e `npm test` executam os testes locais: core, interface, reconciliação, OAuth/HTTP com serviços simulados e isolamento das tabelas em PostgreSQL local via PGlite. Nenhum teste usa agenda ou tokens reais. Node.js 24 é usado para validar o handler TypeScript sem um segundo compilador.
+
+## Sono & Recuperação
+
+A aba Sono tem Hoje, Histórico, Análises e Configurações. Noites manuais são identificadas pela data de despertar; entrada na cama, latência, tempo acordado, qualidade e energia são opcionais. Duração estimada e tempo planejado são distintos. Metas históricas ficam preservadas. Os registros entram nos backups e na sincronização privada existentes.
+
+A configuração permite horários por dia da semana, meta, fuso e lembrete Google. Adicionar à agenda é sempre uma ação explícita. Repetições nativas usam séries agrupadas por horário, com período escolhido de até um ano. Atualizar ou encerrar próximas noites preserva ocorrências passadas. Os testes de interface salvam noites fictícias somente em origem isolada, sem login.
+
+No iPhone instalado, entre e vincule o histórico no próprio ícone. O retorno à janela retoma a sessão e consulta a conexão Google que pertence à conta. Dados de login nunca são copiados pela URL. Relatório: docs/SONO-RELATORIO.md. Recuperação estrutural: constancia.recovery.before-sleep-v7, confirmada em IndexedDB antes da gravação.
