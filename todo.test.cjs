@@ -71,3 +71,33 @@ test('metadata-only Google revisions rebase safely while real event edits still 
  T.importEvent(t,cal,raw('meta',{etag:'"real-edit"',summary:'Alterado por outra pessoa'}),'g-meta',stamp);assert(i.conflict);assert.equal(i.conflict.local.start,proposal.start);
  const u=T.seed(),c=T.importEvent(u,cal,raw('cancel'),'g-cancel',stamp);T.setStatus(u,c.id,'canceled',null,stamp);T.importEvent(u,cal,raw('cancel',{etag:'"new-series-revision"'}),'g-cancel',stamp);assert.equal(c.conflict,undefined);assert.equal(c.pending.baseEtag,'"new-series-revision"');assert.equal(c.execution.status,'canceled');
 });
+
+test('selected calendars filter before invitation grouping and metrics, preserving hidden histories',()=>{
+ const t=T.seed(),a=T.importEvent(t,cal,raw('a',{iCalUID:'same'}),'g-a',stamp),b=T.importEvent(t,{...cal,id:'work',primary:false},raw('b',{iCalUID:'same'}),'g-b',stamp);
+ T.setStatus(t,a.id,'completed',null,stamp);t.preferences={calendarIds:['work'],carryoverSince:'2026-10-13',future:'keep'};const snapshot=JSON.stringify(t);
+ assert.deepEqual(T.view(t,'today','2026-10-13').map(i=>i.id),[b.id]);assert.equal(T.metrics(t,'2026-10-13').planned,1);assert.equal(JSON.stringify(t),snapshot);
+ t.preferences.calendarIds=['primary-id'];assert.deepEqual(T.view(t,'today','2026-10-13').map(i=>i.id),[a.id]);assert.equal(T.metrics(t,'2026-10-13').completed,1);assert.equal(t.items.length,2);assert.equal(t.preferences.future,'keep');
+});
+test('daily carryover starts at activation, keeps dates, creates no operations, and disappears on completion',()=>{
+ const t=T.seed();t.preferences={carryoverSince:'2026-10-13'};const old=T.create(t,event('2026-10-12')),i=T.create(t,event());delete i.pending;i.sync.state='synced';const snapshot=JSON.stringify(t);
+ assert.deepEqual(T.view(t,'tomorrow','2026-10-13').map(i=>i.id),[i.id]);assert.deepEqual(T.view(t,'today','2026-10-14').map(i=>i.id),[i.id]);assert.equal(T.view(t,'today','2026-10-15').length,1);assert.equal(JSON.stringify(t),snapshot);
+ assert.equal(i.postponeCount,0);assert.deepEqual(i.event,i.original);assert.equal(i.pending,undefined);assert(!T.view(t,'today','2026-10-14').includes(old));
+ T.setStatus(t,i.id,'completed',null,stamp);assert.equal(T.view(t,'today','2026-10-14').length,0);assert(T.view(t,'history','2026-10-14').includes(i));T.setStatus(t,i.id,'pending',null,stamp);assert(T.view(t,'today','2026-10-14').includes(i));T.setStatus(t,i.id,'canceled',null,stamp);assert.equal(T.view(t,'today','2026-10-14').length,0);
+});
+test('carryover respects local midnight, all-day and multi-day endings without duplicates',()=>{
+ const t=T.seed();t.preferences={carryoverSince:'2026-10-13'};const multi=T.create(t,event('2026-10-13',{allDay:true,start:'2026-10-13',end:'2026-10-15'})),midnight=T.create(t,event('2026-10-13',{start:'2026-10-14T01:00:00Z',end:'2026-10-14T03:00:00Z'}));
+ assert.equal(T.endDay(midnight,t.timeZone),'2026-10-13');assert(T.carryover(t,midnight,'2026-10-14'));assert(!T.carryover(t,multi,'2026-10-14'));assert(T.carryover(t,multi,'2026-10-15'));assert.equal(T.view(t,'today','2026-10-14').filter(i=>i.id===multi.id).length,1);assert.equal(T.view(t,'today','2026-10-15').length,2);
+ midnight.sync.externalDeleted=true;assert(!T.carryover(t,midnight,'2026-10-15'));
+});
+test('recurring occurrences carry independently and explicit postponement stops the earlier carryover',()=>{
+ const t=T.seed();t.preferences={carryoverSince:'2026-10-13'};
+ const a=T.importEvent(t,cal,raw('r-a',{iCalUID:'series',recurringEventId:'s',originalStartTime:{date:'2026-10-13'}}),'g-r-a',stamp),b=T.importEvent(t,cal,raw('r-b',{iCalUID:'series',recurringEventId:'s',originalStartTime:{date:'2026-10-14'},start:{date:'2026-10-14'},end:{date:'2026-10-15'}}),'g-r-b',stamp);
+ assert.equal(T.view(t,'today','2026-10-14').length,2);T.setStatus(t,a.id,'completed',null,stamp);assert.deepEqual(T.view(t,'today','2026-10-14').map(i=>i.id),[b.id]);T.edit(t,b.id,event('2026-10-20'),true,stamp);assert.equal(T.view(t,'today','2026-10-15').length,0);
+});
+test('preference backup and cross-device reconciliation keep habits, training, body, unknown fields and audits',()=>{
+ const base={version:1,habits:[{id:'h',custom:1}],checks:{keep:true},body:{weights:[{date:'2026-10-12',weight:70.5}]},training:{sessions:[{id:'s',custom:2}]},future:{preserved:true},todo:T.seed()};T.create(base.todo,event());
+ const local=T.copy(base),remote=T.copy(base);local.todo.preferences={calendarIds:['work'],carryoverSince:'2026-10-13',unknown:'keep'};remote.todo.items[0].event.title='Updated remotely';const merged=C.reconcile(base,local,remote);assert.deepEqual(merged.conflicts,[]);assert.deepEqual(merged.state.todo.preferences,local.todo.preferences);for(const k of ['habits','checks','body','training','future'])assert.deepEqual(merged.state[k],base[k]);assert.deepEqual(merged.state.todo.history,base.todo.history);assert.equal(merged.state.todo.items[0].event.title,'Updated remotely');T.validate(merged.state.todo);
+ assert.deepEqual(P.restore(base,local).todo.preferences,local.todo.preferences);assert.throws(()=>T.validate({...local.todo,preferences:{calendarIds:'bad'}}));assert.throws(()=>T.validate({...local.todo,preferences:{carryoverSince:'2026-02-30'}}));
+});
+
+test('an event already spanning the activation day carries after its final day without importing older backlog',()=>{const t=T.seed();t.preferences={carryoverSince:'2026-10-13'};const i=T.create(t,event('2026-10-11',{allDay:true,start:'2026-10-11',end:'2026-10-14'}));assert(T.view(t,'today','2026-10-13').includes(i));assert(T.view(t,'today','2026-10-14').includes(i));});

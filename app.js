@@ -2,7 +2,7 @@ const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1';
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY='constancia.recovery.before-todo-v5';
+const RECOVERY='constancia.recovery.before-todo-preferences-v6';
 try{
  const saved=localStorage.getItem(STORAGE);savedRevision=saved;
  try{state=saved?H.validate(JSON.parse(saved)):initial();}catch(error){Persistence.protect(localStorage,RECOVERY,saved);throw error}let migrated=false;
@@ -13,10 +13,12 @@ try{
  if(state.todo===undefined){state.todo=ToDoCore.seed();migrated=true}
  if(migrated){const serialized=JSON.stringify(state);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;}
 }catch(e){state=initial();state.body=Body.seed();state.training=Training.seed();recoveryRequired=true;setTimeout(()=>toast('Os dados originais foram mantidos. Faça um backup e restaure um arquivo válido antes de registrar.'),100)}
+let structureProtected=!window.ConstanciaRecovery||recoveryRequired||!!state.todo?.preferences?.carryoverSince;
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const format=(d,opts)=>H.date(d).toLocaleDateString('pt-BR',opts);
 function toast(s){$('toast').textContent=s;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),4500)}
 function commit(next,notify=true){try{
+ if(!structureProtected){toast('Aguarde a proteção do histórico antes de salvar. Se a proteção falhar, faça um backup.');return false}
  H.validate(next);
  if(localStorage.getItem(STORAGE)!==savedRevision){toast('Outra aba alterou os dados. Recarregue para ver os registros atuais antes de salvar.');return false}
  const serialized=JSON.stringify(next);localStorage.setItem(STORAGE,serialized);savedRevision=serialized;state=next;render();if(notify)window.dispatchEvent(new CustomEvent("constancia:change"));return true
@@ -57,7 +59,7 @@ $('habitForm').onsubmit=e=>{e.preventDefault();const days=[...document.querySele
 $('archive').onclick=()=>{if(update(s=>{s.habits.find(h=>h.id===editing).archivedOn=today})){$('editor').close();toast('Hábito arquivado. Seus registros foram preservados.')}};
 function downloadBackup(content,name){const blob=new Blob([content],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 $('export').onclick=()=>{downloadBackup(localStorage.getItem(STORAGE)||JSON.stringify(state,null,2),`constancia-${today}.json`);toast('Backup preparado para download.')};
-$('recoveryBackup').onclick=()=>{const raw=localStorage.getItem(RECOVERY);if(!raw){toast('Não há uma cópia anterior nesta origem do navegador.');return}downloadBackup(raw,'constancia-antes-da-atualizacao.json');toast('Cópia anterior preparada para download.')};
+$('recoveryBackup').onclick=async()=>{const raw=window.ConstanciaRecovery?await ConstanciaRecovery.read(RECOVERY):localStorage.getItem(RECOVERY);if(!raw){toast('Não há uma cópia anterior nesta origem do navegador.');return}downloadBackup(raw,'constancia-antes-da-atualizacao.json');toast('Cópia anterior preparada para download.')};
 function prepareImport(){
  if(!pendingSource)return;
  const replace=$('importMode').value==='replace';

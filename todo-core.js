@@ -32,6 +32,7 @@
  }
  function validate(todo){
   if(!todo||todo.version!==1||!zone(todo.timeZone)||!Array.isArray(todo.items)||!Array.isArray(todo.history)||todo.items.length>50000||todo.history.length>200000)throw Error('Histórico do To-Do inválido.');
+  if(todo.preferences!=null){const p=todo.preferences;if(!p||typeof p!=='object'||Array.isArray(p)||p.carryoverSince!=null&&!validDay(p.carryoverSince)||p.calendarIds!=null&&(!Array.isArray(p.calendarIds)||p.calendarIds.length>500||p.calendarIds.some(id=>typeof id!=='string'||!id||id.length>1024)))throw Error('Preferências do To-Do inválidas.');}
   const ids=new Set();for(const i of todo.items){
    if(!i||typeof i.id!=='string'||! /^[a-zA-Z0-9-]{1,100}$/.test(i.id)||ids.has(i.id)||['__proto__','constructor','prototype'].includes(i.id)||!STATUSES.includes(i.execution?.status)||!Number.isInteger(i.postponeCount)||i.postponeCount<0)throw Error('Item do To-Do inválido.');
    schedule(i.event);schedule(i.original);ids.add(i.id);
@@ -77,31 +78,34 @@
  }
  const active=i=>!i.sync?.externalDeleted&&!['completed','canceled'].includes(i.execution.status);
  const calendarAllowed=id=>!String(id||'').endsWith('#holiday@group.v.calendar.google.com');
- function logicalItems(todo){
+ const calendarVisible=(todo,i)=>calendarAllowed(i.google?.calendarId)&&(!Array.isArray(todo.preferences?.calendarIds)||todo.preferences.calendarIds.includes(i.google?.calendarId)||i.google?.calendarId==='primary'&&todo.preferences.calendarIds.includes('primary'));
+ function logicalItems(todo,visibleOnly=false){
   const actions=new Map();for(const h of todo.history)if(['status','edited','postponed','created','conflict_resolved'].includes(h.type))actions.set(h.itemId,Math.max(actions.get(h.itemId)||0,Date.parse(h.at)));
   const groups=new Map(),rank=i=>[i.sync?.externalDeleted?0:1,actions.get(i.id)||0,i.google?.writable?1:0,i.google?.primary?1:0,i.origin==='constancia'?1:0];
-  for(const i of todo.items){const occurrence=i.google?.occurrence,o=occurrence?.dateTime?String(Date.parse(occurrence.dateTime)):occurrence?.date||'',key=i.google?.iCalUID?'uid:'+i.google.iCalUID+'|'+o:'id:'+i.id,old=groups.get(key);if(!old){groups.set(key,i);continue;}const a=rank(i),b=rank(old);let order=0;for(let n=0;n<a.length&&!order;n++)order=a[n]-b[n];if(order>0||!order&&i.id<old.id)groups.set(key,i);}
+  for(const i of todo.items){if(visibleOnly&&!calendarVisible(todo,i))continue;const occurrence=i.google?.occurrence,o=occurrence?.dateTime?String(Date.parse(occurrence.dateTime)):occurrence?.date||'',key=i.google?.iCalUID?'uid:'+i.google.iCalUID+'|'+o:'id:'+i.id,old=groups.get(key);if(!old){groups.set(key,i);continue;}const a=rank(i),b=rank(old);let order=0;for(let n=0;n<a.length&&!order;n++)order=a[n]-b[n];if(order>0||!order&&i.id<old.id)groups.set(key,i);}
   return [...groups.values()];
  }
  const startDay=(i,z)=>i.event.allDay?i.event.start:day(i.event.start,z);
  function onDay(i,d,z){const a=startDay(i,z),b=i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);return a<=d&&b>=d;}
+ const endDay=(i,z)=>i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);
+ function carryover(todo,i,target){return active(i)&&!!todo.preferences?.carryoverSince&&endDay(i,todo.timeZone)>=todo.preferences.carryoverSince&&endDay(i,todo.timeZone)<target;}
  const pendingSince=today=>[today.slice(0,4)+'-01-01',shift(today,-90)].sort().at(-1);
  function view(todo,name,today,nextDate=today){
   const z=todo.timeZone,cutoff=pendingSince(today);
-  return logicalItems(todo).filter(i=>{
+  return logicalItems(todo,true).filter(i=>{
    if(!calendarAllowed(i.google?.calendarId))return false;
    const d=startDay(i,z);
    if(name==='history')return i.sync?.externalDeleted||['completed','canceled','postponed'].includes(i.execution.status)||i.postponeCount>0;
    if(i.sync?.externalDeleted||i.execution.status==='canceled')return false;
    if(name==='pending')return active(i)&&d>=cutoff&&d<today&&!onDay(i,today,z);
-   if(name==='today')return onDay(i,today,z);
-   if(name==='tomorrow')return onDay(i,shift(today,1),z);
+   if(name==='today')return onDay(i,today,z)||carryover(todo,i,today);
+   if(name==='tomorrow')return onDay(i,shift(today,1),z)||carryover(todo,i,shift(today,1));
    return onDay(i,nextDate,z)&&nextDate>today;
   }).sort((a,b)=>a.event.start.localeCompare(b.event.start)||a.id.localeCompare(b.id));
  }
  function metrics(todo,today){
   const first=today.slice(0,4)+'-01-01',cutoff=pendingSince(today),inYear=d=>d>=first&&d<=today;
-  const items=logicalItems(todo).filter(i=>calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
+  const items=logicalItems(todo,true).filter(i=>calendarAllowed(i.google?.calendarId)&&(inYear(startDay(i,todo.timeZone))||inYear(startDay({event:i.original},todo.timeZone)))),eligible=items.filter(i=>!i.sync?.externalDeleted&&i.execution.status!=='canceled'),done=eligible.filter(i=>i.execution.status==='completed').length;
   return {planned:items.length,completed:done,pending:eligible.filter(i=>active(i)&&(startDay(i,todo.timeZone)>=cutoff||onDay(i,today,todo.timeZone))).length,canceled:items.filter(i=>!i.sync?.externalDeleted&&i.execution.status==='canceled').length,postponed:items.filter(i=>i.postponeCount>0).length,reschedules:items.reduce((n,i)=>n+i.postponeCount,0),backlog:view(todo,'pending',today).length,eligible:eligible.length,rate:eligible.length?Math.round(done/eligible.length*100):null};
  }
  function providerEvent(i){const p=i.pending;return {summary:(p.canceled?'[Cancelado] ':'')+p.event.title,description:p.event.description,start:p.event.allDay?{date:p.event.start}:{dateTime:p.event.start,timeZone:p.event.timeZone},end:p.event.allDay?{date:p.event.end}:{dateTime:p.event.end,timeZone:p.event.timeZone},extendedProperties:{private:{constanciaId:i.id,constanciaOrigin:i.origin,constanciaCanceled:String(p.canceled)}}};}
@@ -126,6 +130,6 @@
   if(!sameEvent(before,item.event)||before.timeZone!==item.event.timeZone)audit(todo,item,'google_updated',before,item.event,at,'google-'+id+'-'+String(raw.etag||raw.updated||at).replace(/[^a-zA-Z0-9]/g,''));
   return item;
  }
- root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,logicalItems,startDay,onDay,view,metrics,providerEvent,sameEvent,importEvent};
+ root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,calendarVisible,logicalItems,startDay,endDay,carryover,onDay,view,metrics,providerEvent,sameEvent,importEvent};
  if(typeof module!=='undefined')module.exports=root.ToDoCore;
 })(typeof window!=='undefined'?window:globalThis);
