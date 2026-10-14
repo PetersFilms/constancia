@@ -63,7 +63,7 @@ export async function handler(req:Request){
    const url=new URL('https://accounts.google.com/o/oauth2/v2/auth');url.search=new URLSearchParams({client_id:env('GOOGLE_CLIENT_ID'),redirect_uri:redirectUri(),response_type:'code',scope:'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.calendarlist.readonly',access_type:'offline',prompt:'consent select_account',state,code_challenge:challenge,code_challenge_method:'S256'}).toString();
    return json({url:url.toString()},200,cors);
   }
-  if(input.action!=='sync')throw new ProviderError(400,'Ação inválida.');
+  if(!['sync','calendars'].includes(input.action))throw new ProviderError(400,'Ação inválida.');
   if(input.date&&(!/^\d{4}-\d{2}-\d{2}$/.test(input.date)||!Number.isFinite(Date.parse(input.date))||new Date(input.date).toISOString().slice(0,10)!==input.date||+input.date.slice(0,4)<1900||+input.date.slice(0,4)>2200))throw new ProviderError(400,'Escolha uma data válida entre 1900 e 2200.');
   const linked=await rest('constancia_calendar_connections?'+filter+'&select=account_id,reconnect');if(!linked?.length||linked[0].reconnect)throw new ProviderError(401,'Reconecte sua conta Google para sincronizar.');
   let connection:any,tokens:any,currentLease:string;
@@ -88,6 +88,11 @@ export async function handler(req:Request){
    insert:(id:string,body:any)=>googleRequest('calendars/'+encodeURIComponent(id)+'/events?sendUpdates=none',{method:'POST',body:JSON.stringify(body)}),
    patch:(id:string,event:string,body:any,etag:string)=>googleRequest('calendars/'+encodeURIComponent(id)+'/events/'+encodeURIComponent(event)+'?sendUpdates=none',{method:'PATCH',headers:{'If-Match':etag},body:JSON.stringify(body)})
   };
+  if(input.action==='calendars'){
+   const lease=crypto.randomUUID();if(!await db.claim(lease))return json({busy:true},200,cors);
+   try{await db.connection();const calendars=(await google.calendars()).filter((c:any)=>globalThis.ToDoCore.calendarAllowed(c.id)).map(({id,summary,summaryOverride,primary,accessRole,timeZone}:any)=>({id,summary:summaryOverride||summary,primary,accessRole,timeZone}));return json({calendars,accountId:connection.account_id},200,cors);}
+   finally{await db.release(lease);}
+  }
   try{return json(await synchronize({db,google,user:user.id,date:input.date,pageBudget:3}),200,cors);}
   catch(e){throw e;}
  }catch(e){if(!(e instanceof ProviderError))console.warn('calendar_sync_failure',JSON.stringify({name:e?.name||'Unknown',reason:['Dados do compromisso inválidos.','Datas de dia inteiro inválidas.','O término deve ocorrer depois do início.','Histórico do To-Do inválido.','Item do To-Do inválido.'].includes(e?.message)?e.message:'unexpected',frames:String(e?.stack||'').split('\n').slice(1,4)}));const status=e instanceof ProviderError?e.status:503;return json({error:e instanceof ProviderError?e.message:'A sincronização está indisponível. Seu histórico permanece salvo.'},status,cors);}
