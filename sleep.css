@@ -28,3 +28,5 @@
 .cycle-side{min-width:0}.cycle-day-navigation{display:flex;align-items:center;gap:6px;margin-bottom:12px}.cycle-day-navigation button{min-width:44px;min-height:44px;padding:6px 12px;font-size:22px;color:var(--cycle-ink)}.cycle-day-navigation select{min-width:0;flex:1;min-height:44px;border:1px solid var(--cycle-line);border-radius:12px;padding:9px 12px;background:var(--cycle-paper);color:var(--cycle-ink);font-size:14px}.sleep-cycle button:focus-visible,.sleep-cycle select:focus-visible{outline-color:var(--cycle-ink)}
 
 .cycle-center>b>span{font-size:clamp(8px,1.7cqw,11px);font-weight:400;color:var(--cycle-muted)}
+
+.sleep-goal-preview{display:block;margin-top:8px;color:var(--muted);font-size:11px;line-height:1.5}.sleep-goal-preview[data-valid=false]{color:#976B3A}

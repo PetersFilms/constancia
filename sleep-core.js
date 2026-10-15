@@ -7,6 +7,13 @@
  const time=x=>typeof x==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(x),num=(v,a,b)=>v==null||typeof v==='number'&&Number.isFinite(v)&&v>=a&&v<=b;
  const nowDay=(z='America/Sao_Paulo')=>T.day(new Date().toISOString(),z);
  const seed=()=>({version:1,records:[],settings:{timeZone:'America/Sao_Paulo',goalMinutes:480,wakeTime:null,latencyMinutes:15,bedTime:null,days:[0,1,2,3,4,5,6],byWeekday:{},reminderMinutes:null},settingsVersions:[],plans:[],history:[]});
+ // Duration input is distinct from clock time: comma/point mean decimal hours.
+ function parseGoalHours(raw,optional=false){
+  const value=String(raw??'').trim().toLowerCase();if(!value&&optional)return null;
+  const message='Informe uma meta entre 1 e 18 horas. Ex.: 8:30, 8h30 ou 8,5.',decimal=value.match(/^(\d{1,2}(?:[,.]\d{1,4})?)\s*(?:h|horas?)?$/),clock=value.match(/^(\d{1,2}):(\d{1,2})$/),written=value.match(/^(\d{1,2})\s*(?:h|horas?)(?:\s*(?:e\s+)?(\d{1,2})\s*(?:m|min|minutos?)?)?$/);
+  let minutes;if(decimal)minutes=Number(decimal[1].replace(',','.'))*60;else{const parts=clock||written;if(!parts||Number(parts[2]||0)>59)throw Error(message);minutes=Number(parts[1])*60+Number(parts[2]||0);}
+  if(!Number.isFinite(minutes)||minutes<60||minutes>1080)throw Error(message);return Math.round(minutes);
+ }
  function settings(v){
   try{new Intl.DateTimeFormat('en',{timeZone:v.timeZone});}catch{throw Error('Fuso do sono inválido.');}
   if(!v||!num(v.goalMinutes,60,1080)||v.goalMinutes==null||!num(v.latencyMinutes,0,240)||v.latencyMinutes==null||v.wakeTime!=null&&!time(v.wakeTime)||v.bedTime!=null&&!time(v.bedTime)||!Array.isArray(v.days)||!v.days.length||new Set(v.days).size!==v.days.length||v.days.some(d=>!Number.isInteger(d)||d<0||d>6)||!num(v.reminderMinutes,0,40320)||v.reminderMinutes!=null&&!Number.isInteger(v.reminderMinutes))throw Error('Configuração do sono inválida.');
@@ -121,5 +128,5 @@
   const met=productivity.filter(p=>p.sleep>=p.goal&&p.rate!=null),below=productivity.filter(p=>p.sleep<p.goal&&p.rate!=null);
   return {habit,training,trainingDuration,workouts,productivity,execution:{met:{n:met.length,mean:mean(met.map(p=>p.rate))},below:{n:below.length,mean:mean(below.map(p=>p.rate))},sufficient:met.length>=5&&below.length>=5}};
  }
- root.SleepCore={weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
+ root.SleepCore={parseGoalHours,weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
 })(typeof window!=='undefined'?window:globalThis);
