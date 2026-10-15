@@ -134,7 +134,7 @@
    else if(!item.pending.baseEtag||item.pending.baseEtag!==raw.etag){if(sameEvent(item.pending.baseEvent||before,event)&&(item.pending.baseCanceled??item.google?.canceledMarker??false)===(marker.constanciaCanceled==='true')){item.pending.kind='patch';item.pending.baseEtag=raw.etag;delete item.conflict;}else{item.conflict={local:copy(item.pending.event),remote:copy(event),reason:'edited'};conflict=true;}}
   }
   item.google={...item.google,calendarId:calendar.id,accountId:calendar.accountId||item.google.accountId||null,eventId:raw.id,sourceTaskId:marker.constanciaId||null,htmlLink:typeof raw.htmlLink==='string'&&/^https:\/\/calendar\.google\.com\//.test(raw.htmlLink)?raw.htmlLink:null,etag:raw.etag||null,canceledMarker:marker.constanciaCanceled==='true',iCalUID:raw.iCalUID||item.google.iCalUID||null,primary:!!calendar.primary,recurringEventId:raw.recurringEventId||null,occurrence:raw.originalStartTime||null,writable:['owner','writer'].includes(calendar.accessRole)};
-  item.event={...item.event,...copy(item.pending&&!conflict?item.pending.event:event)};item.sync={...item.sync,lastSync:at,externalDeleted:false,state:conflict?'conflict':item.pending?'pending':'synced'};
+  item.event={...item.event,...copy(item.pending&&!conflict?item.pending.event:event)};item.sync={...item.sync,lastSync:at,externalDeleted:false,state:conflict?'conflict':item.pending?'pending':'synced'};if(!item.pending&&!conflict)delete item.sync.error;
   if(!sameEvent(before,item.event)||before.timeZone!==item.event.timeZone)audit(todo,item,'google_updated',before,item.event,at,'google-'+id+'-'+String(raw.etag||raw.updated||at).replace(/[^a-zA-Z0-9]/g,''));
   return item;
  }
