@@ -2,7 +2,7 @@ const H=Habits,$=id=>document.getElementById(id),STORAGE='constancia.v1',history
 let today=H.key(new Date()),selected=today,month=today.slice(0,7),editing=null,pending=null,pendingSource=null,toastTimer;
 const initial=()=>({version:1,habits:[['Estudo / leitura','Um tempo para aprender, todos os dias.'],['Treino','O movimento que você se propôs a fazer.'],['Alimentação','Cumprir a meta de alimentação que você definiu.']].map(([name,goal],i)=>({id:'habit-'+i,name,goal,start:today,days:[0,1,2,3,4,5,6]})),checks:{}});
 let state,recoveryRequired=false,savedRevision=null;
-const RECOVERY=window.ConstanciaHistory?'constancia.recovery.before-mobile-storage-v8':window.SleepCore?'constancia.recovery.before-sleep-v7':'constancia.recovery.before-todo-preferences-v6';
+const RECOVERY=window.ConstanciaHistory?'constancia.recovery.before-calendar-identity-v9':window.SleepCore?'constancia.recovery.before-sleep-v7':'constancia.recovery.before-todo-preferences-v6';
 let protectionPromise=null,migrationPending=false;
 try{
  const saved=historyStorage.getItem(STORAGE);savedRevision=saved;
