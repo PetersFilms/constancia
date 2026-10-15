@@ -20,7 +20,7 @@
   if(!Number.isInteger(goalMinutes)||goalMinutes<60||goalMinutes>1080)throw Error('Informe uma meta entre 1 e 18 horas.');
   if(!Number.isInteger(latencyMinutes)||latencyMinutes<0||latencyMinutes>240)throw Error('Informe uma margem entre 0 e 240 minutos.');
   const source=mode==='wake'?wakeTime:bedTime;
-  if(!time(source))throw Error(mode==='wake'?'Informe a hora em que quer acordar.':'Informe a hora em que vai deitar.');
+  if(!time(source))throw Error(mode==='wake'?'Informe a hora em que quer acordar.':'Informe a hora em que vai dormir.');
   const total=goalMinutes+latencyMinutes,anchor=Number(source.slice(0,2))*60+Number(source.slice(3)),target=anchor+(mode==='wake'?-total:total),dayOffset=Math.floor(target/1440),clock=((target%1440)+1440)%1440,value=String(Math.floor(clock/60)).padStart(2,'0')+':'+String(clock%60).padStart(2,'0');
   return {mode,goalMinutes,latencyMinutes,totalMinutes:total,dayOffset,bedTime:mode==='wake'?value:source,wakeTime:mode==='bed'?value:source};
  }

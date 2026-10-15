@@ -33,7 +33,7 @@ Validação visual e interativa no navegador em desktop e largura de celular. Es
 
 ## Planejamento em dois sentidos — v52
 
-Em Sono → Configurações → Meta e planejamento, escolha **Quero acordar** ou **Vou deitar**. A sugestão acompanha a meta, a margem e o horário digitados, sem gravar enquanto você experimenta.
+Em Sono → Configurações → Meta e planejamento, escolha **Quero acordar às** ou **Vou dormir às**. A sugestão acompanha a meta, a margem e o horário digitados, sem gravar enquanto você experimenta.
 
 - Quero acordar: hora de deitar = despertar − meta − margem.
 - Vou deitar: despertar = hora de deitar + margem + meta.
@@ -45,3 +45,8 @@ Em Sono → Configurações → Meta e planejamento, escolha **Quero acordar** o
 - Sem migração de banco ou mudança no formato do histórico. Registros anteriores, metas aplicadas, planejamentos, agendas e propriedades desconhecidas são preservados. Nenhum compromisso real foi alterado para testar.
 
 Validação: testes de cálculo nos dois sentidos, limites, virada do dia, entrada direta/picker, prévia sem gravação, preservação de rascunho, salvamento explícito, campos inválidos e preservação de outros módulos. Suíte completa: 138 testes.
+
+
+### Refinamento visual — v53
+
+Sugestão sem caixa preenchida: rótulo e horário em uma linha, explicação discreta abaixo e somente uma divisória fina. O estado vazio omite o traço grande. Seletores renomeados para “Quero acordar às” e “Vou dormir às”; cálculo e armazenamento permanecem iguais.
