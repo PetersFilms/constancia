@@ -14,6 +14,16 @@
   let minutes;if(decimal)minutes=Number(decimal[1].replace(',','.'))*60;else{const parts=clock||written;if(!parts||Number(parts[2]||0)>59)throw Error(message);minutes=Number(parts[1])*60+Number(parts[2]||0);}
   if(!Number.isFinite(minutes)||minutes<60||minutes>1080)throw Error(message);return Math.round(minutes);
  }
+ // Clock-only routine estimate. The offset is relative to the supplied clock's day.
+ function recommend({mode='wake',goalMinutes,latencyMinutes,wakeTime,bedTime}){
+  if(!['wake','bed'].includes(mode))throw Error('Escolha se quer calcular quando deitar ou acordar.');
+  if(!Number.isInteger(goalMinutes)||goalMinutes<60||goalMinutes>1080)throw Error('Informe uma meta entre 1 e 18 horas.');
+  if(!Number.isInteger(latencyMinutes)||latencyMinutes<0||latencyMinutes>240)throw Error('Informe uma margem entre 0 e 240 minutos.');
+  const source=mode==='wake'?wakeTime:bedTime;
+  if(!time(source))throw Error(mode==='wake'?'Informe a hora em que quer acordar.':'Informe a hora em que vai deitar.');
+  const total=goalMinutes+latencyMinutes,anchor=Number(source.slice(0,2))*60+Number(source.slice(3)),target=anchor+(mode==='wake'?-total:total),dayOffset=Math.floor(target/1440),clock=((target%1440)+1440)%1440,value=String(Math.floor(clock/60)).padStart(2,'0')+':'+String(clock%60).padStart(2,'0');
+  return {mode,goalMinutes,latencyMinutes,totalMinutes:total,dayOffset,bedTime:mode==='wake'?value:source,wakeTime:mode==='bed'?value:source};
+ }
  function settings(v){
   try{new Intl.DateTimeFormat('en',{timeZone:v.timeZone});}catch{throw Error('Fuso do sono inválido.');}
   if(!v||!num(v.goalMinutes,60,1080)||v.goalMinutes==null||!num(v.latencyMinutes,0,240)||v.latencyMinutes==null||v.wakeTime!=null&&!time(v.wakeTime)||v.bedTime!=null&&!time(v.bedTime)||!Array.isArray(v.days)||!v.days.length||new Set(v.days).size!==v.days.length||v.days.some(d=>!Number.isInteger(d)||d<0||d>6)||!num(v.reminderMinutes,0,40320)||v.reminderMinutes!=null&&!Number.isInteger(v.reminderMinutes))throw Error('Configuração do sono inválida.');
@@ -128,5 +138,5 @@
   const met=productivity.filter(p=>p.sleep>=p.goal&&p.rate!=null),below=productivity.filter(p=>p.sleep<p.goal&&p.rate!=null);
   return {habit,training,trainingDuration,workouts,productivity,execution:{met:{n:met.length,mean:mean(met.map(p=>p.rate))},below:{n:below.length,mean:mean(below.map(p=>p.rate))},sufficient:met.length>=5&&below.length>=5}};
  }
- root.SleepCore={parseGoalHours,weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
+ root.SleepCore={parseGoalHours,recommend,weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
 })(typeof window!=='undefined'?window:globalThis);

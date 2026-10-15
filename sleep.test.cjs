@@ -20,3 +20,12 @@ test('sleep goal notation distinguishes decimal hours from clock-style durations
  for(const [raw,expected]of [['8',480],['8 horas',480],['7:45',465],['8,30',498],['1:00',60],['18:00',1080]])assert.equal(S.parseGoalHours(raw),expected,raw);
  assert.equal(S.parseGoalHours('',true),null);for(const raw of ['','0:30','18:01','8:60','8:99','8,5.0','-8','24','8h90','8:30:00','1e1'])assert.throws(()=>S.parseGoalHours(raw),/entre 1 e 18 horas/,raw);
 });
+
+test('routine recommendations work in both directions, identify midnight crossing and reject incomplete input',()=>{
+ const a=S.recommend({mode:'wake',goalMinutes:510,latencyMinutes:30,wakeTime:'07:00'});assert.equal(a.bedTime,'22:00');assert.equal(a.dayOffset,-1);assert.equal(a.totalMinutes,540);
+ const b=S.recommend({mode:'bed',goalMinutes:510,latencyMinutes:30,bedTime:'22:45'});assert.equal(b.wakeTime,'07:45');assert.equal(b.dayOffset,1);
+ const c=S.recommend({mode:'bed',goalMinutes:480,latencyMinutes:0,bedTime:'00:30'});assert.equal(c.wakeTime,'08:30');assert.equal(c.dayOffset,0);
+ assert.equal(S.recommend({mode:'wake',goalMinutes:480,latencyMinutes:0,wakeTime:'08:00'}).bedTime,'00:00');
+ for(const hour of ['00:00','00:01','07:00','12:37','23:59'])for(const goal of [60,465,510,1080])for(const latency of [0,15,240]){const result=S.recommend({mode:'bed',goalMinutes:goal,latencyMinutes:latency,bedTime:hour}),back=S.recommend({mode:'wake',goalMinutes:goal,latencyMinutes:latency,wakeTime:result.wakeTime});assert.equal(back.bedTime,hour);}
+ for(const patch of [{mode:'other'},{wakeTime:''},{wakeTime:'25:00'},{goalMinutes:0},{goalMinutes:1081},{latencyMinutes:-1},{latencyMinutes:241},{latencyMinutes:0.5}])assert.throws(()=>S.recommend({mode:'wake',wakeTime:'07:00',goalMinutes:480,latencyMinutes:15,...patch}));
+});

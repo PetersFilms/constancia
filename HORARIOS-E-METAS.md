@@ -29,3 +29,19 @@ Sem migração de dados, tabelas, credenciais ou alterações na integração Go
 136 testes aprovados: formatos equivalentes e ambíguos, limites, minutos inválidos, campos opcionais, seleção exata, atalhos, cancelamento, foco, teclado, campos desabilitados, alteração de fundo, preservação de metas anteriores e outras áreas, formulários de noite e compromissos de dia inteiro, além da suíte anterior.
 
 Validação visual e interativa no navegador em desktop e largura de celular. Escape no seletor preserva o diálogo da noite aberto. Não houve gravação de testes na conta real nem nos compromissos pessoais. A validação móvel por viewport não equivale a um teste em iPhone físico.
+
+
+## Planejamento em dois sentidos — v52
+
+Em Sono → Configurações → Meta e planejamento, escolha **Quero acordar** ou **Vou deitar**. A sugestão acompanha a meta, a margem e o horário digitados, sem gravar enquanto você experimenta.
+
+- Quero acordar: hora de deitar = despertar − meta − margem.
+- Vou deitar: despertar = hora de deitar + margem + meta.
+- Exemplo: meta 8h30, margem 30 min e despertar 07:00 → deitar 22:00 na noite anterior.
+- Exemplo inverso: deitar 22:45, mesma meta e margem → despertar 07:45 no dia seguinte.
+- A virada do dia é indicada; valores incompletos ou inválidos não produzem um horário enganoso nem permitem salvar.
+- Salvar minha rotina grava o par de horários calculado nos campos já existentes. Horários específicos por dia da semana continuam prevalecendo sobre a rotina habitual.
+- A sugestão é uma reserva de tempo baseada na meta informada; não prevê ciclos ou estágios do sono. Não cria registros de sono nem compromissos no Google por si só.
+- Sem migração de banco ou mudança no formato do histórico. Registros anteriores, metas aplicadas, planejamentos, agendas e propriedades desconhecidas são preservados. Nenhum compromisso real foi alterado para testar.
+
+Validação: testes de cálculo nos dois sentidos, limites, virada do dia, entrada direta/picker, prévia sem gravação, preservação de rascunho, salvamento explícito, campos inválidos e preservação de outros módulos. Suíte completa: 138 testes.
