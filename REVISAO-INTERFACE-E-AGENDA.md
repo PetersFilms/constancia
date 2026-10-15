@@ -1,4 +1,4 @@
-# Revisão de interface e sincronização — v56
+# Revisão de interface e sincronização — v57
 
 Implementação conjunta dos itens 1 a 9 do pedido de interface e do item 10 de sincronização.
 
@@ -32,6 +32,8 @@ Sem DDL, alteração de autenticação, permissões ou secrets. Mantidas as chav
 
 ## Validação
 
-148 testes automatizados passam, incluindo resposta perdida, edição em voo, edição depois de recarregar, alterações de data/título/descrição/fuso, cancelamento, exclusão, recorrência, falhas e preservação das outras áreas. O teste de igualdade distingue normalização do offset de uma alteração explícita do fuso.
+150 testes automatizados passam, incluindo resposta perdida, edição em voo, edição depois de recarregar, alterações de data/título/descrição/fuso, cancelamento, exclusão, recorrência, falhas e preservação das outras áreas. O teste de igualdade distingue normalização do offset de uma alteração explícita do fuso.
 
 Validação visual usa prévia isolada sem conexão com a conta. A inspeção de produção foi somente leitura e não excluiu nem alterou compromissos. Além dos adaptadores simulados, foi executado um teste autenticado na agenda isolada Constância — testes: criação no To-Do às 09h–10h, edição para 11h–12h, leitura independente no Google retornando um único evento com o mesmo ID e confirmação após recarregar. O compromisso fictício foi cancelado ao final e a seleção original de agendas restaurada. Nenhum compromisso pessoal foi usado para teste. Um aviso antigo de falha que persistia após a confirmação do Google também foi corrigido; a confirmação limpa o erro já resolvido.
+
+Operações consecutivas levam um marcador privado constanciaOperationId. As últimas oito propostas pendentes são mantidas apenas no outbox para reconhecer a resposta de uma operação anterior sem confundir uma alteração externa com a confirmação do próprio envio. A referência do próximo envio é atualizada quando o marcador e o conteúdo confirmam a operação anterior.
