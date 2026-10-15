@@ -12,3 +12,7 @@ header .brand:hover{background:transparent}.brand-menu{margin-left:12px;font-siz
 @keyframes settings-in{from{transform:translateX(-22px);opacity:.6}to{transform:translateX(0);opacity:1}}
 @media(max-width:600px){#settingsDrawer{padding:calc(22px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));border-radius:0 22px 22px 0}.settings-heading{margin-bottom:20px}.brand-menu{margin-left:8px}#settingsDrawer .settings-zone select{font-size:16px!important}}
 @media(prefers-reduced-motion:reduce){#settingsDrawer[open]{animation:none}}
+
+/* Updates lead the settings sheet only while a new version is ready. */
+.brand-menu{position:relative;display:inline-flex;align-items:center}.update-dot{position:absolute;top:-2px;right:-4px;width:7px;height:7px;border-radius:50%;background:#A54E3D;box-shadow:0 0 0 2px var(--bg)}.update-dot[hidden]{display:none}
+.settings-update{padding:0 0 22px;border-top:0}.settings-update button{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:44px;border-radius:14px;font-size:13px}.settings-update .settings-hint{margin-top:8px}

@@ -9,7 +9,7 @@
  drawer.addEventListener('click',e=>{if(e.target!==drawer)return;const b=drawer.getBoundingClientRect();if(e.clientX<b.left||e.clientX>b.right||e.clientY<b.top||e.clientY>b.bottom)drawer.close();});
  $('settingsCloud').onclick=()=>{if(window.ConstanciaCalendar?.available())$('syncNow').click();else $('accountOpen').click();};
  // Keep notices available in settings without repeatedly announcing them on the main screen.
- const notice=()=>{const problem=!$('dataStatus').hidden||!$('todoConnectionError').hidden||['conflict','error'].includes($('syncStatus').dataset.kind);opener.setAttribute('aria-description',problem?'Há um aviso em Configurações.':'Conta, sincronização, agenda e backups.');};
+ const notice=()=>{const updateReady=!$('appUpdate').hidden,problem=!$('dataStatus').hidden||!$('todoConnectionError').hidden||['conflict','error'].includes($('syncStatus').dataset.kind);opener.querySelector('.update-dot').hidden=!updateReady;opener.setAttribute('aria-description',updateReady?'Atualização disponível. Abra o menu para atualizar o aplicativo.':problem?'Há um aviso em Configurações.':'Conta, sincronização, agenda e backups.');};
  new MutationObserver(notice).observe(drawer,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['hidden','data-kind']});notice();
  // Startup failures must remain actionable even if the rest of the app could not load.
  new MutationObserver(()=>{if(!$('dataStatus').hidden&&!drawer.open)open();}).observe($('dataStatus'),{attributes:true,attributeFilter:['hidden']});
