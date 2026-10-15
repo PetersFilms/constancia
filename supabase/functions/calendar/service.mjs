@@ -47,38 +47,57 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   cursors.__constancia_next={id:'__operations'};await checkpoint();
   await change(todo=>{for(const i of todo.items)if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}});
   const row=await db.readState(),operations=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
-  for(const snapshot of operations){
-   take();if(snapshot.pending.dependsOn?.length){const latest=await db.readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
-   const op=snapshot.pending.operationId;
+  for(const queued of operations){
+   take();let snapshot=(await db.readState()).state.todo?.items.find(i=>i.id===queued.id);if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;if(snapshot.pending.dependsOn?.length){const latest=await db.readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
+   let op=snapshot.pending.operationId;
    if(snapshot.pending.accountId!==connection.account_id||!calendar||!['owner','writer'].includes(calendar.accessRole)){
     await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:snapshot.pending.accountId!==connection.account_id?'O compromisso pertence a outra conta Google. Reconecte a conta original.':'Esta agenda não permite edição. A execução foi salva no Constância.'};});continue;
    }
    let result;
    try{
-    const body=T.providerEvent(snapshot);
-    if(snapshot.pending.kind==='create'){
-     const id=await eventId(user,snapshot.id);
-     try{result=await google.insert(calendar.id,{...body,id});}
-     catch(e){if(e.status!==409)throw e;result=await google.get(calendar.id,id);if(result.extendedProperties?.private?.constanciaId!==snapshot.id)throw new ProviderError(409,'Identificação de evento em conflito.');}
+    // A persistent provider identity always wins over an old outbox kind.
+    let remote=null,target=snapshot.google.eventId;
+    if(target){remote=await google.get(calendar.id,target);}
+    else{
+     const stableId=await eventId(user,snapshot.id);
+     try{remote=await google.get(calendar.id,stableId);}catch(e){if(e.status!==404)throw e;}
+     if(remote&&remote.extendedProperties?.private?.constanciaId!==snapshot.id)throw new ProviderError(409,'Identificação de evento em conflito.');
+     if(!remote){
+      // Recover older/missing associations by the exact private task marker, never by title.
+      let page='',matches=[];do{check();const found=await google.events(calendar.id,{privateExtendedProperty:'constanciaId='+snapshot.id,singleEvents:false,showDeleted:true,maxResults:250,...page?{pageToken:page}:{}});matches.push(...(found.items||[]).filter(e=>e.extendedProperties?.private?.constanciaId===snapshot.id&&!e.recurringEventId));page=found.nextPageToken||'';}while(page);
+      if(matches.length>1){await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:'Há mais de um evento com o vínculo desta tarefa. Revise as cópias no Google Agenda antes de reenviar.'};});continue;}
+      remote=matches[0]||null;
+     }
+     if(remote)target=remote.id;
+     else if(snapshot.pending.kind!=='create')throw new ProviderError(409,'O vínculo deste evento precisa ser revisado. Nenhum novo evento foi criado.');
+    }
+    if(remote){
+     await merge(calendar,[remote]);
+     snapshot=(await db.readState()).state.todo.items.find(i=>i.id===queued.id);
+     if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;
+     op=snapshot.pending.operationId;
+     if(remote.status==='cancelled')continue;
+     if(!snapshot.pending.baseEtag||snapshot.pending.baseEtag!==remote.etag)continue;
+     const body=T.providerEvent(snapshot);body.extendedProperties={...remote.extendedProperties,private:{...remote.extendedProperties?.private,...body.extendedProperties.private}};
+     result=await google.patch(calendar.id,target,body,remote.etag);
     }else{
-     const remote=await google.get(calendar.id,snapshot.google.eventId);
-     if(remote.status==='cancelled'){await merge(calendar,[remote]);continue;}
-     if(!snapshot.pending.baseEtag||remote.etag!==snapshot.pending.baseEtag){await merge(calendar,[remote]);continue;}
-     body.extendedProperties={...remote.extendedProperties,private:{...remote.extendedProperties?.private,...body.extendedProperties.private}};
-     result=await google.patch(calendar.id,snapshot.google.eventId,body,snapshot.pending.baseEtag);
+     const id=await eventId(user,snapshot.id),body=T.providerEvent(snapshot);
+     try{result=await google.insert(calendar.id,{...body,id});}
+     catch(e){if(e.status!==409)throw e;const found=await google.get(calendar.id,id);if(found.extendedProperties?.private?.constanciaId!==snapshot.id)throw new ProviderError(409,'Identificação de evento em conflito.');await merge(calendar,[found]);continue;}
     }
     await change(async todo=>{
      const i=todo.items.find(i=>i.id===snapshot.id);if(!i)return;
      const newer=i.pending&&i.pending.operationId!==op,preserved=newer?T.copy(i.pending):null;
      T.importEvent(todo,calendar,result,await itemId(calendar.id,result),clock());
-     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
+     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag,baseEvent:T.copy(snapshot.pending.event),baseCanceled:snapshot.pending.canceled};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
      else if(i.pending?.operationId===op){i.conflict={local:T.copy(i.pending.event),remote:T.copy(i.event),reason:'edited'};i.sync.state='conflict';}
      delete i.sync.error;
     });
    }catch(e){
+    if(e===pause)throw e;
     if(e.status===412){await merge(calendar,[await google.get(calendar.id,snapshot.google.eventId)]);continue;}
     if([404,410].includes(e.status)&&snapshot.google.eventId){await merge(calendar,[{id:snapshot.google.eventId,status:'cancelled'}]);continue;}
-    await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:e.status===401?'A autorização expirou. Reconecte sua conta Google.':'Não foi possível enviar. O registro está protegido; tente sincronizar novamente.'};});
+    await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:e.status===401?'A autorização expirou. Reconecte sua conta Google.':e.status===409?e.message:'Não foi possível enviar. O registro está protegido; tente sincronizar novamente.'};});
     if(e.status===401)throw e;
    }
   }
