@@ -1,0 +1,9 @@
+.brain-note{margin:0 0 12px;opacity:.85}
+.brain-form textarea{width:100%;resize:vertical;box-sizing:border-box}
+.brain-list h2{font-size:1rem;margin:0 0 8px}
+.brain-row{display:flex;gap:8px 12px;justify-content:space-between;align-items:baseline;padding:8px 0;border-top:1px solid rgba(128,128,128,.25);flex-wrap:wrap}
+.brain-row:first-of-type{border-top:0}
+.brain-title{flex:1 1 55%;min-width:0;overflow-wrap:anywhere}
+.brain-status{font-size:.85em;opacity:.85}
+.brain-row[data-state="classificado"] .brain-status{opacity:1}
+.brain-when{font-size:.8em;opacity:.6}

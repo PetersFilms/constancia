@@ -25,6 +25,12 @@
  // One coordinator serves To-Do and Sleep. No module has a network polling timer.
  const CalendarSync=window.ConstanciaCalendarSync;
  calendarSync=CalendarSync?new CalendarSync({invoke:invokeCalendar,flush,available:()=>!!session&&engine.owned(session.user.id)&&!data.blocked(),notify:detail=>window.dispatchEvent(new CustomEvent('constancia:calendar-updated',{detail}))}):{reset(){},status:()=>invokeCalendar('status'),request:({date})=>invokeCalendar('sync',{date}),notice(){}};
+ // Fila do segundo cérebro: inserções e leitura leve (sem o conteúdo) da própria conta.
+ window.ConstanciaBrainCloud={
+  available:()=>!!session&&engine.owned(session.user.id),
+  async insert(item){if(!authReady||session?.expires_at&&session.expires_at*1000<Date.now()+30000)await resumeSession();if(!this.available())throw Error('Entre na sua conta e vincule o histórico para enviar ao cérebro.');const {error}=await client.from('constancia_brain_inbox').insert({user_id:session.user.id,kind:item.kind,content:item.content,note:item.note,created_at:item.created_at});if(error)throw Error('Não foi possível enviar a captura agora.');},
+  async list(limit=20){if(!this.available())return [];const {data,error}=await client.from('constancia_brain_inbox').select('id,created_at,kind,note,status,result').order('created_at',{ascending:false}).limit(limit);if(error)throw Error('Não foi possível carregar as capturas.');return data||[];}
+ };
  window.ConstanciaCalendar={
   context:()=>({ready:authReady,signedIn:!!session,linked:!!session&&engine.owned(session.user.id),blocked:data.blocked(),standalone:!!navigator.standalone||matchMedia('(display-mode: standalone)').matches}),
   resume:resumeSession,available:()=>!!session&&engine.owned(session.user.id)&&!data.blocked(),
