@@ -1,12 +1,13 @@
 (function(root){
  'use strict';
- const KINDS=['texto','foto'],MAX_CONTENT=1800000,MAX_NOTE=10000,OUTBOX_LIMIT=10;
+ const KINDS=['texto','foto','audio'],MAX_CONTENT=1800000,MAX_NOTE=10000,OUTBOX_LIMIT=10;
  function capture(kind,content,note='',at=new Date().toISOString()){
   if(!KINDS.includes(kind))throw Error('Tipo de captura inválido.');
   const text=String(content||'');
-  if(!text.trim())throw Error(kind==='foto'?'A foto não pôde ser lida.':'Escreva algo antes de guardar.');
-  if(kind==='foto'&&!/^data:image\/(jpeg|png|webp);base64,/.test(text))throw Error('A foto não pôde ser lida.');
-  if(text.length>MAX_CONTENT)throw Error('A captura é grande demais. Reduza o texto ou tente outra foto.');
+  if(!text.trim())throw Error(kind==='texto'?'Escreva algo antes de guardar.':kind==='audio'?'O áudio não pôde ser lido.':'A foto não pôde ser lida.');
+  if(kind==='foto'&&!/^data:image\/(jpeg|png|webp|heic|heif);base64,/.test(text))throw Error('A foto não pôde ser lida.');
+  if(kind==='audio'&&!/^data:audio\/[a-z0-9.+-]+(;[a-z0-9.+=-]+)*;base64,/i.test(text))throw Error('O áudio não pôde ser lido.');
+  if(text.length>MAX_CONTENT)throw Error('A captura é grande demais. Reduza o texto ou tente um arquivo menor.');
   const label=String(note||(kind==='texto'?text.trim().slice(0,120):'')).slice(0,MAX_NOTE);
   return {kind,content:text,note:label,created_at:at};
  }

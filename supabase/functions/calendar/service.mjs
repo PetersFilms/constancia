@@ -11,7 +11,11 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
  const check=()=>{if(Date.now()>deadline)throw pause;};
  const take=()=>{check();if(remaining--<=0)throw pause;};
  const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,calendarSyncedVersion:jobNoticeVersion,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
- async function change(fn){for(let attempt=0;attempt<6;attempt++){check();const row=await db.readState();if(!row?.state)throw Error('Vincule seu histórico antes de sincronizar a agenda.');const next=T.copy(row.state);next.todo??=T.seed();await fn(next.todo);T.validate(next.todo);check();if(JSON.stringify(next)===JSON.stringify(row.state))return next.todo;if(await db.saveState(row.revision,next))return next.todo;}throw Error('O histórico mudou em outro aparelho. Tente novamente.');}
+ // O histórico tem megabytes: cada execução lê a cópia completa uma vez e a reusa. Uma gravação
+ // aceita atualiza o cache; uma recusada o invalida, e a tentativa seguinte relê a revisão nova.
+ let stateCache=null;
+ const readState=async()=>stateCache??=await db.readState();
+ async function change(fn){for(let attempt=0;attempt<6;attempt++){check();const row=await readState();if(!row?.state)throw Error('Vincule seu histórico antes de sincronizar a agenda.');const next=T.copy(row.state);next.todo??=T.seed();await fn(next.todo);T.validate(next.todo);check();if(JSON.stringify(next)===JSON.stringify(row.state))return next.todo;if(await db.saveState(row.revision,next)){stateCache={state:next,revision:row.revision+1};return next.todo;}stateCache=null;}throw Error('O histórico mudou em outro aparelho. Tente novamente.');}
  async function merge(calendar,events){return change(async todo=>{for(const e of events)T.importEvent(todo,calendar,e,await itemId(calendar.id,e),clock());});}
  const checkpoint=()=>db.saveConnection({cursors});
  try{
@@ -36,7 +40,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
     while(work.phase==='expand'){
      take();const result=await google.events(calendar.id,{singleEvents:true,showDeleted:true,maxResults:250,timeMin,timeMax,...work.page?{pageToken:work.page}:{}});
      for(const e of result.items||[])work.seen.push(e.id);await merge(calendar,result.items||[]);work.page=result.nextPageToken||null;
-     if(!work.page){const seen=new Set([...work.rawSeen,...work.seen]),row=await db.readState();work.missing=(row.state.todo?.items||[]).filter(i=>i.google?.calendarId===calendar.id&&i.google.eventId&&!seen.has(i.google.eventId)&&!i.sync?.externalDeleted&&i.event.start>=timeMin.slice(0,10)&&i.event.start<=timeMax.slice(0,10)).map(i=>i.google.eventId);work.verifyIndex=0;work.phase='verify';delete work.rawSeen;delete work.seen;}
+     if(!work.page){const seen=new Set([...work.rawSeen,...work.seen]),row=await readState();work.missing=(row.state.todo?.items||[]).filter(i=>i.google?.calendarId===calendar.id&&i.google.eventId&&!seen.has(i.google.eventId)&&!i.sync?.externalDeleted&&i.event.start>=timeMin.slice(0,10)&&i.event.start<=timeMax.slice(0,10)).map(i=>i.google.eventId);work.verifyIndex=0;work.phase='verify';delete work.rawSeen;delete work.seen;}
      await checkpoint();
     }
     while(work.phase==='verify'&&work.verifyIndex<work.missing.length){
@@ -48,9 +52,9 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   }
   cursors.__constancia_next={id:'__operations'};await checkpoint();
   await change(todo=>{for(const i of todo.items)if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}});
-  const row=await db.readState(),operations=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
+  const row=await readState(),operations=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
   for(const queued of operations){
-   take();let snapshot=(await db.readState()).state.todo?.items.find(i=>i.id===queued.id);if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;if(snapshot.pending.dependsOn?.length){const latest=await db.readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
+   take();let snapshot=(await readState()).state.todo?.items.find(i=>i.id===queued.id);if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;if(snapshot.pending.dependsOn?.length){const latest=await readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
    let op=snapshot.pending.operationId;
    if(snapshot.pending.accountId!==connection.account_id||!calendar||!['owner','writer'].includes(calendar.accessRole)){
     await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:snapshot.pending.accountId!==connection.account_id?'O compromisso pertence a outra conta Google. Reconecte a conta original.':'Esta agenda não permite edição. A execução foi salva no Constância.'};});continue;
@@ -75,7 +79,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
     }
     if(remote){
      await merge(calendar,[remote]);
-     snapshot=(await db.readState()).state.todo.items.find(i=>i.id===queued.id);
+     snapshot=(await readState()).state.todo.items.find(i=>i.id===queued.id);
      if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;
      op=snapshot.pending.operationId;
      if(remote.status==='cancelled')continue;

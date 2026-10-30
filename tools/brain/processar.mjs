@@ -20,9 +20,10 @@ if(cmd==='list'){
 }else if(cmd==='fetch'&&id&&args[0]){
  const rows=await rest('constancia_brain_inbox?id=eq.'+encodeURIComponent(id)+'&select=kind,content,note');
  const row=rows?.[0];if(!row)throw Error('Captura não encontrada.');
- if(row.kind==='foto')writeFileSync(args[0],Buffer.from(row.content.slice(row.content.indexOf(',')+1),'base64'));
- else writeFileSync(args[0],row.content);
- console.log('ok '+args[0]+(row.note?'\nnota: '+row.note:''));
+ if(row.kind==='texto')writeFileSync(args[0],row.content);
+ else writeFileSync(args[0],Buffer.from(row.content.slice(row.content.indexOf(',')+1),'base64'));
+ const mime=row.kind==='texto'?'texto':(row.content.match(/^data:([^;]+);/)?.[1]||'desconhecido');
+ console.log('ok '+args[0]+' ('+mime+')'+(row.note?'\nnota: '+row.note:''));
 }else if((cmd==='done'||cmd==='discard')&&id&&args.length){
  await rest('constancia_brain_inbox?id=eq.'+encodeURIComponent(id)+'&status=eq.pendente',{method:'PATCH',body:JSON.stringify({status:cmd==='done'?'classificado':'descartado',result:args.join(' ').slice(0,10000),processed_at:new Date().toISOString(),content:''})});
  console.log('ok');

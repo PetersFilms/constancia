@@ -7,3 +7,4 @@
 .brain-status{font-size:.85em;opacity:.85}
 .brain-row[data-state="classificado"] .brain-status{opacity:1}
 .brain-when{font-size:.8em;opacity:.6}
+@media(max-width:600px){.page-tabs{grid-template-columns:repeat(6,minmax(0,1fr))}.page-tabs #brainTab:before{content:'✶'}.page-tabs button{font-size:10px;padding:10px 2px}}
