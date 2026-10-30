@@ -9,13 +9,13 @@
    this.requests.push({date,force,reason});if(this.running)return this.running;
    const epoch=this.epoch;this.running=this.drain(epoch).finally(()=>{this.running=null;});return this.running;
   }
-  async drain(epoch){let result;while(this.requests.length&&epoch===this.epoch){const batch=this.requests.splice(0),last=batch.at(-1),date=last.date||new Date(this.clock()).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}),force=batch.some(r=>r.force);if(!this.available())return null;
+  async drain(epoch){let result;while(this.requests.length&&epoch===this.epoch){const batch=this.requests.splice(0),last=batch.at(-1),date=last.date||new Date(this.clock()).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}),force=batch.some(r=>r.force),refresh=batch.some(r=>r.reason==='resolved');if(!this.available())return null;
     const connection=await this.status(force||batch.some(r=>r.reason==='resume'));if(!connection?.connected||connection.reconnect)return connection;
     if(this.dirty&&this.watchedVersion!==this.version||(!connection.watchExpires||Date.parse(connection.watchExpires)<this.clock()+86400000)&&this.clock()-this.watchAttempt>15*60000){this.watchAttempt=this.clock();const watch=await this.invoke('watch');if(epoch!==this.epoch)return;this.connection={...connection,...watch};if(!watch.busy)this.watchedVersion=this.version;}
     const safeResume=batch.some(r=>r.reason==='resume')&&this.clock()-this.lastResume>15*60000;
-    if(!force&&!this.dirty&&!safeResume&&this.coverage&&date>=this.coverage.min&&date<=this.coverage.max&&this.coverage.day===new Date(this.clock()).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})){continue;}
+    if(!force&&!refresh&&!this.dirty&&!safeResume&&this.coverage&&date>=this.coverage.min&&date<=this.coverage.max&&this.coverage.day===new Date(this.clock()).toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'})){continue;}
     this.lastResume=this.clock();if(!await this.flush())throw Error('Revise as diferenças do histórico em Minha conta antes de atualizar a agenda.');
-    let chunks=0;do{result=await this.invoke('sync',{date});if(epoch!==this.epoch)return;this.connection={...this.connection,...result};this.notify(this.connection);if(result.busy)throw Error('A agenda está sendo atualizada em outro aparelho. Tente novamente ao terminar.');if(result.partial&&++chunks>=60)throw Error('A importação foi pausada. Toque em sincronizar para continuar de onde parou.');}while(result.partial);
+    let chunks=0;do{result=await this.invoke('sync',refresh&&!chunks?{date,refresh:true}:{date});if(epoch!==this.epoch)return;this.connection={...this.connection,...result};this.notify(this.connection);if(result.busy)throw Error('A agenda está sendo atualizada em outro aparelho. Tente novamente ao terminar.');if(result.partial&&++chunks>=60)throw Error('A importação foi pausada. Toque em sincronizar para continuar de onde parou.');}while(result.partial);
     // Fetch the resulting cloud revision once; no idle timer starts a new sync.
     if(!await this.flush())throw Error('A agenda foi atualizada. A cópia deste aparelho ainda precisa ser sincronizada.');
     this.synced=Math.max(this.synced,Number(result.calendarSyncedVersion||0));this.dirty=this.version>this.synced;

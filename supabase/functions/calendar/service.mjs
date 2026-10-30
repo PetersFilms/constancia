@@ -5,7 +5,7 @@ export const eventId=async(user,id)=>'c'+await digest(user+'|'+id);
 export const itemId=async(calendar,e)=>'g-'+(await digest(calendar+'|'+e.id+'|'+JSON.stringify(e.originalStartTime||null))).slice(0,64);
 export class ProviderError extends Error{constructor(status,message='Falha na agenda'){super(message);this.status=status;}}
 // Injectable adapter: the test suite never calls a real Google calendar.
-export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0}){
+export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0,refresh=false}){
  const lease=crypto.randomUUID(),at=clock(),deadline=Date.now()+40000,pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
  if(!await db.claim(lease))return {busy:true};
  const check=()=>{if(Date.now()>deadline)throw pause;};
@@ -16,6 +16,8 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
  const checkpoint=()=>db.saveConnection({cursors});
  try{
   connection=await db.connection();cursors=T.copy(connection.cursors||{});jobNoticeVersion=cursors.__constancia_notice_version??noticeVersion;cursors.__constancia_notice_version=jobNoticeVersion;calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
+  // Conflict resolution may discard imports the sync token already acknowledged; one expansion pass re-reads them while keeping tokens and identityVersion.
+  if(refresh){for(const [id,cursor] of Object.entries(cursors))if(!id.startsWith('__')&&cursor&&typeof cursor==='object'){delete cursor.fullDay;delete cursor.work;}cursors.__constancia_next=null;await checkpoint();}
   const wanted=date||T.day(at),timeMin=T.shift(wanted,-366)+'T00:00:00Z',timeMax=T.shift(wanted,366)+'T23:59:59Z';
   const resumed=calendars.findIndex(c=>c.id===cursors.__constancia_next?.id),start=cursors.__constancia_next?.id==='__operations'?calendars.length:Math.max(0,resumed);
   for(let index=start;index<calendars.length;index++){

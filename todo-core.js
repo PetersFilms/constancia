@@ -82,16 +82,22 @@
  const active=i=>!i.sync?.externalDeleted&&!['completed','canceled'].includes(i.execution.status);
  const calendarAllowed=id=>!String(id||'').endsWith('#holiday@group.v.calendar.google.com');
  const calendarVisible=(todo,i)=>calendarAllowed(i.google?.calendarId)&&(!Array.isArray(todo.preferences?.calendarIds)||todo.preferences.calendarIds.includes(i.google?.calendarId)||i.google?.calendarId==='primary'&&todo.preferences.calendarIds.includes('primary'));
+ const inviteKey=i=>{const occurrence=i.google?.occurrence,o=occurrence?.dateTime?String(Date.parse(occurrence.dateTime)):occurrence?.date||'';return i.google?.iCalUID?'uid:'+i.google.iCalUID+'|'+o:'id:'+i.id;};
  function logicalItems(todo,visibleOnly=false){
   const actions=new Map();for(const h of todo.history)if(['status','edited','postponed','created','conflict_resolved'].includes(h.type))actions.set(h.itemId,Math.max(actions.get(h.itemId)||0,Date.parse(h.at)));
   const groups=new Map(),rank=i=>[i.sync?.externalDeleted?0:1,actions.get(i.id)||0,i.google?.writable?1:0,i.google?.primary?1:0,i.origin==='constancia'?1:0];
-  for(const i of todo.items){if(visibleOnly&&!calendarVisible(todo,i))continue;const occurrence=i.google?.occurrence,o=occurrence?.dateTime?String(Date.parse(occurrence.dateTime)):occurrence?.date||'',key=i.google?.iCalUID?'uid:'+i.google.iCalUID+'|'+o:'id:'+i.id,old=groups.get(key);if(!old){groups.set(key,i);continue;}const a=rank(i),b=rank(old);let order=0;for(let n=0;n<a.length&&!order;n++)order=a[n]-b[n];if(order>0||!order&&i.id<old.id)groups.set(key,i);}
+  for(const i of todo.items){if(visibleOnly&&!calendarVisible(todo,i))continue;const key=inviteKey(i),old=groups.get(key);if(!old){groups.set(key,i);continue;}const a=rank(i),b=rank(old);let order=0;for(let n=0;n<a.length&&!order;n++)order=a[n]-b[n];if(order>0||!order&&i.id<old.id)groups.set(key,i);}
   return [...groups.values()];
  }
  const startDay=(i,z)=>i.event.allDay?i.event.start:day(i.event.start,z);
  function onDay(i,d,z){const a=startDay(i,z),b=i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);return a<=d&&b>=d;}
  const endDay=(i,z)=>i.event.allDay?shift(i.event.end,-1):day(Date.parse(i.event.end)-1,z);
  function carryover(todo,i,target){return !i.sleepPlanId&&!i.seriesMaster&&active(i)&&!!todo.preferences?.carryoverSince&&endDay(i,todo.timeZone)>=todo.preferences.carryoverSince&&endDay(i,todo.timeZone)<target;}
+ // Presentation only: counts current/future events the calendar selection hides, skipping invites whose copy in a selected calendar is shown.
+ function hiddenCalendarCount(todo,today){
+  const shown=new Set(logicalItems(todo,true).map(inviteKey));
+  return logicalItems(todo,false).filter(i=>!shown.has(inviteKey(i))&&calendarAllowed(i.google?.calendarId)&&!i.seriesMaster&&active(i)&&endDay(i,todo.timeZone)>=today).length;
+ }
  const pendingSince=today=>[today.slice(0,4)+'-01-01',shift(today,-90)].sort().at(-1);
  function view(todo,name,today,nextDate=today){
   const z=todo.timeZone,cutoff=pendingSince(today);
@@ -138,6 +144,6 @@
   if(!sameEvent(before,item.event)||before.timeZone!==item.event.timeZone)audit(todo,item,'google_updated',before,item.event,at,'google-'+id+'-'+String(raw.etag||raw.updated||at).replace(/[^a-zA-Z0-9]/g,''));
   return item;
  }
- root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,calendarVisible,logicalItems,startDay,endDay,carryover,onDay,view,metrics,duplicateGroups,providerEvent,sameEvent,importEvent};
+ root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,calendarVisible,logicalItems,hiddenCalendarCount,startDay,endDay,carryover,onDay,view,metrics,duplicateGroups,providerEvent,sameEvent,importEvent};
  if(typeof module!=='undefined')module.exports=root.ToDoCore;
 })(typeof window!=='undefined'?window:globalThis);

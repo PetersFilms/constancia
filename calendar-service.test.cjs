@@ -55,3 +55,13 @@ test('identical titles in different calendars and recurring occurrences do not b
 
 test('a lost patch reply followed by a newer action rebases only the acknowledged operation',async()=>{const f=fake(),i=T.create(f.state.todo,event,at,'primary','account-a');await run(f);let current=f.state.todo.items.find(x=>x.id===i.id);T.edit(f.state.todo,i.id,{...current.event,start:'2026-10-14T14:00:00Z',end:'2026-10-14T15:00:00Z'},false,at);const patch=f.google.patch;let lost=true;f.google.patch=async(...args)=>{const result=await patch(...args);if(lost){lost=false;throw Error('reply lost');}return result;};await run(f);assert(f.state.todo.items[0].pending);T.setStatus(f.state.todo,i.id,'canceled','self',at);await run(f);current=f.state.todo.items.find(x=>x.id===i.id);assert(!current.pending);assert(!current.conflict);assert.equal(current.sync.error,undefined);assert.equal(f.inserted,1);assert.equal(f.events.size,1);assert.equal([...f.events.values()][0].summary,'[Cancelado] Novo');});
 test('a client retaining an already acknowledged edit queues the next action against the confirmed event',async()=>{const f=fake(),i=T.create(f.state.todo,event,at,'primary','account-a');await run(f);let current=f.state.todo.items[0];T.edit(f.state.todo,i.id,{...current.event,title:'Mudou'},false,at);const stale=T.copy(current.pending);await run(f);current=f.state.todo.items[0];current.pending=stale;T.setStatus(f.state.todo,i.id,'canceled','self',at);assert.equal(current.pending.baseEvent.title,'Mudou');await run(f);assert.equal(f.events.size,1);assert(!f.state.todo.items[0].pending);assert(!f.state.todo.items[0].conflict);});
+
+test('a refresh after conflict resolution re-imports discarded events without clearing sync tokens',async()=>{
+ const f=fake();f.events.set('external',raw('external'));
+ f.google.events=async(id,q)=>{const items=[...f.events.values()].map(T.copy);if(q.syncToken)return {items:[],nextSyncToken:q.syncToken};if(q.singleEvents)return {items};return {items,nextSyncToken:'initial'};};
+ await run(f);assert.equal(f.state.todo.items.length,1);const token=f.connections.cursors[cal.id].token;
+ f.state={...T.copy(f.state),todo:T.seed()};
+ await run(f);assert.equal(f.state.todo.items.length,0);
+ await (await api()).synchronize({db:f.db,google:f.google,user:'user-test',date:'2026-10-13',clock:()=>at,refresh:true});
+ assert.equal(f.state.todo.items.length,1);assert.equal(f.connections.cursors[cal.id].token,token);
+});
