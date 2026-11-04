@@ -51,6 +51,8 @@ Agenda v58: a resolução de um conflito de histórico dispara uma sincronizaç�
 
 Cérebro v59: a área Cérebro captura texto ou foto para a tabela constancia_brain_inbox (RLS por usuário; foto comprimida viaja em content, limite 1,8 MB no cliente). Nada entra em constancia_states: a fila é independente do motor de sincronização e a fila offline usa constancia.brain.outbox.v1 (teto de 10 itens). A classificação roda no computador do proprietário (tools/brain/processar.mjs + chave service_role em ~/.config/constancia/brain.env, fora do repositório) e segue o protocolo do vault Obsidian: só a síntese final entra no acervo, a foto nunca é copiada para lá e content é esvaziado em done/discard. Não expor a service key no cliente.
 
+Fila de operações da agenda: o envio roda em rodízio (`cursors.__constancia_op_after`), retomando após a última operação que gastou orçamento — uma operação presa no início da fila não esfomeia mais as novas. Campo aditivo no cursor da conexão; não o apague nem reordene a fila por fora.
+
 v62: "Em andamento" prefixa o evento Google com `⏳` pela mesma fila do `✓`/`[Cancelado]` (pending.inProgress, marcador privado constanciaInProgress; sem mudança de cor). Sair do estado remove o prefixo; concluir troca por `✓`. Campos aditivos, pendings antigos tratados como false.
 
 v61: concluir um item marca o evento Google com prefixo `✓` e cor grafite pela mesma fila de operações do `[Cancelado]` (pending.completed, marcador privado constanciaCompleted, cor original guardada em constanciaColor e restaurada ao desmarcar). Nenhum evento é excluído pela conclusão; desmarcar remove o `✓` e devolve a cor. Campos novos são aditivos; pendings antigos sem `completed` são tratados como false.

@@ -87,3 +87,14 @@ test('the multi-megabyte history is read once per run and refreshed only after a
  reads=0;T.create(f.state.todo,event,at,'primary','account-a');f.failures=1;await run(f);
  assert(reads<=3,'releituras demais: '+reads);assert.equal(f.state.todo.items.length,2);assert.equal(f.inserted,1);assert(!f.state.todo.items.find(i=>i.origin==='constancia').pending);
 });
+
+test('a stuck head operation does not starve newer queued operations under a small page budget',async()=>{
+ const f=fake();f.events.set('a',raw('a'));f.events.set('b',{...raw('b'),summary:'Reunião'});await run(f);
+ const ia=f.state.todo.items.find(i=>i.google.eventId==='a'),ib=f.state.todo.items.find(i=>i.google.eventId==='b');
+ T.setStatus(f.state.todo,ia.id,'completed',null,at);T.setStatus(f.state.todo,ib.id,'completed',null,at);
+ const patch=f.google.patch;f.google.patch=async(id,e,...rest)=>{if(e==='a'){const err=Error('provider keeps refusing this one');err.status=500;throw err;}return patch(id,e,...rest);};
+ const synchronize=(await api()).synchronize;let result,attempts=0;
+ do{result=await synchronize({db:f.db,google:f.google,user:'user-test',date:'2026-10-13',clock:()=>at,pageBudget:1});assert(++attempts<30,'fila esfomeada: a operação nova nunca foi tentada');}while(result.partial);
+ assert.equal(f.events.get('b').summary,'✓ Reunião');
+ const a=f.state.todo.items.find(i=>i.id===ia.id);assert(a.pending);assert.equal(a.sync.state,'error');
+});
