@@ -85,9 +85,13 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
      if(remote.status==='cancelled')continue;
      if(!snapshot.pending.baseEtag||snapshot.pending.baseEtag!==remote.etag)continue;
      const body=T.providerEvent(snapshot);body.extendedProperties={...remote.extendedProperties,private:{...remote.extendedProperties?.private,...body.extendedProperties.private}};
+     // Esmaecido ao concluir: guarda a cor original do evento uma vez e a devolve ao desmarcar (null limpa campo e marcador no PATCH).
+     const priv=body.extendedProperties.private;
+     if(snapshot.pending.completed){if(priv.constanciaColor==null)priv.constanciaColor=remote.colorId||'';}
+     else if(priv.constanciaColor!=null){body.colorId=priv.constanciaColor||null;priv.constanciaColor=null;}
      result=await google.patch(calendar.id,target,body,remote.etag);
     }else{
-     const id=await eventId(user,snapshot.id),body=T.providerEvent(snapshot);
+     const id=await eventId(user,snapshot.id),body=T.providerEvent(snapshot);if(snapshot.pending.completed)body.extendedProperties.private.constanciaColor='';
      try{result=await google.insert(calendar.id,{...body,id});}
      catch(e){if(e.status!==409)throw e;const found=await google.get(calendar.id,id);if(found.extendedProperties?.private?.constanciaId!==snapshot.id)throw new ProviderError(409,'Identificação de evento em conflito.');await merge(calendar,[found]);continue;}
     }
@@ -95,7 +99,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
      const i=todo.items.find(i=>i.id===snapshot.id);if(!i)return;
      const newer=i.pending&&i.pending.operationId!==op,preserved=newer?T.copy(i.pending):null;
      T.importEvent(todo,calendar,result,await itemId(calendar.id,result),clock());
-     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag,baseEvent:T.copy(snapshot.pending.event),baseCanceled:snapshot.pending.canceled};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
+     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag,baseEvent:T.copy(snapshot.pending.event),baseCanceled:snapshot.pending.canceled,baseCompleted:snapshot.pending.completed??false};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
      else if(i.pending?.operationId===op){i.conflict={local:T.copy(i.pending.event),remote:T.copy(i.event),reason:'edited'};i.sync.state='conflict';}
      delete i.sync.error;
     });

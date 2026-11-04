@@ -109,4 +109,19 @@ test('externally deleted events are hidden in every view and metric while audit 
  const t=T.seed(),i=T.importEvent(t,cal,raw(),'g-event',stamp);T.setStatus(t,i.id,'canceled',null,stamp);assert.equal(T.view(t,'history','2026-10-13').length,1);assert.equal(T.metrics(t,'2026-10-13').canceled,1);
  const restored=T.seed(),done=T.importEvent(restored,cal,raw(),'g-restored',stamp);T.setStatus(restored,done.id,'completed',null,stamp);T.importEvent(restored,cal,{id:'event-a',status:'cancelled'},done.id,stamp);assert.equal(T.view(restored,'history','2026-10-13').length,0);T.importEvent(restored,cal,raw('event-a',{etag:'"restored"'}),done.id,stamp);assert.equal(restored.items.length,1);assert.equal(T.view(restored,'history','2026-10-13')[0].id,done.id);
 });
+test('completion marks the Google event with ✓ and graphite; undoing restores title and markers',()=>{
+ const t=T.seed(),i=T.importEvent(t,cal,raw(),'g-event',stamp);
+ T.setStatus(t,i.id,'completed',null,stamp);
+ assert.equal(i.pending.completed,true);assert.equal(i.pending.kind,'patch');
+ const e=T.providerEvent(i);
+ assert.equal(e.summary,'✓ Consulta');assert.equal(e.colorId,'8');assert.equal(e.extendedProperties.private.constanciaCompleted,'true');
+ T.importEvent(t,cal,{id:'event-a',etag:'"2"',...e},'g-event',stamp);
+ assert.equal(i.pending,undefined);assert.equal(i.event.title,'Consulta');assert.equal(i.google.completedMarker,true);assert.equal(i.sync.state,'synced');
+ T.setStatus(t,i.id,'pending',null,'2026-10-13T21:01:00.000Z');
+ assert.equal(i.pending.completed,false);assert.equal(i.pending.baseCompleted,true);
+ const undo=T.providerEvent(i);
+ assert.equal(undo.summary,'Consulta');assert.equal(undo.colorId,undefined);assert.equal(undo.extendedProperties.private.constanciaCompleted,'false');
+ T.importEvent(t,cal,{id:'event-a',etag:'"3"',...undo},'g-event',stamp);
+ assert.equal(i.pending,undefined);assert.equal(i.google.completedMarker,false);T.validate(t);
+});
 test('events hidden only by the calendar selection are counted for the picker notice',()=>{const t=T.seed();T.importEvent(t,{...cal,id:'work',primary:false},raw('w1'),'item-w1',stamp);T.importEvent(t,cal,raw('p1',{iCalUID:'shared'}),'item-p1',stamp);T.importEvent(t,{...cal,id:'work',primary:false},raw('w2',{iCalUID:'shared'}),'item-w2',stamp);const selection=ids=>({...t,preferences:{...t.preferences,calendarIds:ids}});assert.equal(T.hiddenCalendarCount(selection([cal.id]),'2026-10-13'),1);assert.equal(T.hiddenCalendarCount(selection([cal.id,'work']),'2026-10-13'),0);assert.equal(T.hiddenCalendarCount(selection([cal.id]),'2026-10-14'),0);T.validate(t);});

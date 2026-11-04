@@ -67,6 +67,18 @@ test('a refresh after conflict resolution re-imports discarded events without cl
  assert.equal(f.state.todo.items.length,1);assert.equal(f.connections.cursors[cal.id].token,token);
 });
 
+test('completing shades the Google event graphite and undoing restores its original color',async()=>{
+ const f=fake();f.events.set('external',{...raw('external'),colorId:'5'});
+ await run(f);const i=f.state.todo.items[0];
+ T.setStatus(f.state.todo,i.id,'completed',null,at);await run(f);
+ let e=f.events.get('external');
+ assert.equal(e.summary,'✓ Consulta');assert.equal(e.colorId,'8');assert.equal(e.extendedProperties.private.constanciaColor,'5');
+ assert(!f.state.todo.items[0].pending);assert.equal(f.state.todo.items[0].event.title,'Consulta');assert.equal(f.state.todo.items[0].execution.status,'completed');
+ T.setStatus(f.state.todo,i.id,'pending',null,at);await run(f);
+ e=f.events.get('external');
+ assert.equal(e.summary,'Consulta');assert.equal(e.colorId,'5');assert(!e.extendedProperties.private.constanciaColor);
+ assert(!f.state.todo.items[0].pending);assert.equal(f.state.todo.items[0].sync.error,undefined);
+});
 test('the multi-megabyte history is read once per run and refreshed only after a rejected write',async()=>{
  const f=fake();f.events.set('external',raw('external'));
  let reads=0;const read=f.db.readState;f.db.readState=async()=>{reads++;return read();};
