@@ -84,6 +84,7 @@ Somente execute exclusão de eventos de teste quando você decidir fazê-la no p
 - Atualizações chegam ao abrir/retornar ao aplicativo e a cada minuto enquanto ele estiver visível. Aplicativo fechado atualiza no próximo acesso.
 - Cancelado mantém o evento e o prefixo `[Cancelado]`; os participantes não recebem mensagem por essa alteração.
 - Concluído mantém o evento com o prefixo `✓` e a cor grafite (esmaecida); a cor original fica guardada no próprio evento e volta ao desmarcar. Nenhum evento é excluído pela conclusão.
+- Em andamento mantém o evento com o prefixo `⏳`; sair de "Em andamento" sem concluir remove o prefixo, e concluir troca `⏳` por `✓`.
 - Adiar muda somente o evento/ocorrência selecionado e mantém o planejamento original no histórico.
 - Em conflito, a agenda prevalece para título e horário confirmados; a proposta local fica disponível para reenvio explícito.
 - Em Testing, o Google pode limitar a duração do refresh token. O aplicativo sinaliza reconexão em vez de descartar seu histórico. Para uso contínuo em produção, siga os requisitos de publicação/verificação do Google para esses escopos. [Referência OAuth](https://developers.google.com/identity/protocols/oauth2/web-server).

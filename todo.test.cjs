@@ -124,4 +124,21 @@ test('completion marks the Google event with ✓ and graphite; undoing restores 
  T.importEvent(t,cal,{id:'event-a',etag:'"3"',...undo},'g-event',stamp);
  assert.equal(i.pending,undefined);assert.equal(i.google.completedMarker,false);T.validate(t);
 });
+test('in progress marks the Google event with ⏳ and leaving it restores the title',()=>{
+ const t=T.seed(),i=T.importEvent(t,cal,raw(),'g-event',stamp);
+ T.setStatus(t,i.id,'in_progress',null,stamp);
+ assert.equal(i.pending.inProgress,true);
+ const e=T.providerEvent(i);
+ assert.equal(e.summary,'⏳ Consulta');assert.equal(e.colorId,undefined);assert.equal(e.extendedProperties.private.constanciaInProgress,'true');
+ T.importEvent(t,cal,{id:'event-a',etag:'"2"',...e},'g-event',stamp);
+ assert.equal(i.pending,undefined);assert.equal(i.event.title,'Consulta');assert.equal(i.google.inProgressMarker,true);
+ T.setStatus(t,i.id,'pending',null,'2026-10-13T21:01:00.000Z');
+ assert.equal(i.pending.inProgress,false);assert.equal(i.pending.baseInProgress,true);
+ const undo=T.providerEvent(i);assert.equal(undo.summary,'Consulta');assert.equal(undo.extendedProperties.private.constanciaInProgress,'false');
+ T.importEvent(t,cal,{id:'event-a',etag:'"3"',...undo},'g-event',stamp);
+ assert.equal(i.pending,undefined);assert.equal(i.google.inProgressMarker,false);
+ T.setStatus(t,i.id,'in_progress',null,stamp);T.setStatus(t,i.id,'completed',null,stamp);
+ const done=T.providerEvent(i);assert.equal(done.summary,'✓ Consulta');assert.equal(done.extendedProperties.private.constanciaInProgress,'false');assert.equal(done.colorId,'8');
+ T.validate(t);
+});
 test('events hidden only by the calendar selection are counted for the picker notice',()=>{const t=T.seed();T.importEvent(t,{...cal,id:'work',primary:false},raw('w1'),'item-w1',stamp);T.importEvent(t,cal,raw('p1',{iCalUID:'shared'}),'item-p1',stamp);T.importEvent(t,{...cal,id:'work',primary:false},raw('w2',{iCalUID:'shared'}),'item-w2',stamp);const selection=ids=>({...t,preferences:{...t.preferences,calendarIds:ids}});assert.equal(T.hiddenCalendarCount(selection([cal.id]),'2026-10-13'),1);assert.equal(T.hiddenCalendarCount(selection([cal.id,'work']),'2026-10-13'),0);assert.equal(T.hiddenCalendarCount(selection([cal.id]),'2026-10-14'),0);T.validate(t);});

@@ -99,7 +99,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
      const i=todo.items.find(i=>i.id===snapshot.id);if(!i)return;
      const newer=i.pending&&i.pending.operationId!==op,preserved=newer?T.copy(i.pending):null;
      T.importEvent(todo,calendar,result,await itemId(calendar.id,result),clock());
-     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag,baseEvent:T.copy(snapshot.pending.event),baseCanceled:snapshot.pending.canceled,baseCompleted:snapshot.pending.completed??false};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
+     if(newer){i.pending={...preserved,kind:'patch',baseEtag:result.etag,baseEvent:T.copy(snapshot.pending.event),baseCanceled:snapshot.pending.canceled,baseCompleted:snapshot.pending.completed??false,baseInProgress:snapshot.pending.inProgress??false};i.event=T.copy(preserved.event);delete i.conflict;i.sync.state='pending';}
      else if(i.pending?.operationId===op){i.conflict={local:T.copy(i.pending.event),remote:T.copy(i.event),reason:'edited'};i.sync.state='conflict';}
      delete i.sync.error;
     });
