@@ -53,6 +53,8 @@ Cérebro v59: a área Cérebro captura texto ou foto para a tabela constancia_br
 
 Fila de operações da agenda: o envio roda em rodízio (`cursors.__constancia_op_after`), retomando após a última operação que gastou orçamento — uma operação presa no início da fila não esfomeia mais as novas. Campo aditivo no cursor da conexão; não o apague nem reordene a fila por fora.
 
+Janela de sincronização (pedido do Pedro, 04/11/2026): 1 dia para trás e 366 à frente, inclusive na listagem inicial sem syncToken — alterações feitas no Google a mais de 1 dia no passado não são lidas. Itens fora da janela permanecem no estado e nunca entram na verificação de ausentes (não são marcados como apagados). `work.min` guarda a janela do trabalho em andamento; mudá-la reinicia a importação daquela agenda em vez de retomar paginação de outra janela. A fila de operações não depende da janela (PATCH por eventId).
+
 v62: "Em andamento" prefixa o evento Google com `⏳` pela mesma fila do `✓`/`[Cancelado]` (pending.inProgress, marcador privado constanciaInProgress; sem mudança de cor). Sair do estado remove o prefixo; concluir troca por `✓`. Campos aditivos, pendings antigos tratados como false.
 
 v61: concluir um item marca o evento Google com prefixo `✓` e cor grafite pela mesma fila de operações do `[Cancelado]` (pending.completed, marcador privado constanciaCompleted, cor original guardada em constanciaColor e restaurada ao desmarcar). Nenhum evento é excluído pela conclusão; desmarcar remove o `✓` e devolve a cor. Campos novos são aditivos; pendings antigos sem `completed` são tratados como false.

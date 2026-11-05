@@ -22,15 +22,16 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   connection=await db.connection();cursors=T.copy(connection.cursors||{});jobNoticeVersion=cursors.__constancia_notice_version??noticeVersion;cursors.__constancia_notice_version=jobNoticeVersion;calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
   // Conflict resolution may discard imports the sync token already acknowledged; one expansion pass re-reads them while keeping tokens and identityVersion.
   if(refresh){for(const [id,cursor] of Object.entries(cursors))if(!id.startsWith('__')&&cursor&&typeof cursor==='object'){delete cursor.fullDay;delete cursor.work;}cursors.__constancia_next=null;await checkpoint();}
-  const wanted=date||T.day(at),timeMin=T.shift(wanted,-366)+'T00:00:00Z',timeMax=T.shift(wanted,366)+'T23:59:59Z';
+  // Janela enxuta: alterações no Google chegam no máximo 1 dia para trás; itens mais antigos ficam no estado e nunca são verificados nem marcados como apagados.
+  const wanted=date||T.day(at),timeMin=T.shift(wanted,-1)+'T00:00:00Z',timeMax=T.shift(wanted,366)+'T23:59:59Z';
   const resumed=calendars.findIndex(c=>c.id===cursors.__constancia_next?.id),start=cursors.__constancia_next?.id==='__operations'?calendars.length:Math.max(0,resumed);
   for(let index=start;index<calendars.length;index++){
    const calendar=calendars[index];cursors.__constancia_next={id:calendar.id};check();
    const cursor=cursors[calendar.id]??={};let work=cursor.work;
-   if(!work||work.date!==wanted){work=cursor.work={date:wanted,phase:'raw',token:cursor.token||null,page:null,expand:!cursor.token||wanted<cursor.min||wanted>cursor.max||cursor.fullDay!==T.day(at)||cursor.identityVersion!==2,rawSeen:[],seen:[]};}
+   if(!work||work.date!==wanted||work.min!==timeMin){work=cursor.work={date:wanted,min:timeMin,phase:'raw',token:cursor.token||null,page:null,expand:!cursor.token||wanted<cursor.min||wanted>cursor.max||cursor.fullDay!==T.day(at)||cursor.identityVersion!==2,rawSeen:[],seen:[]};}
    try{
     while(work.phase==='raw'){
-     take();let result;try{result=await google.events(calendar.id,{singleEvents:false,showDeleted:true,maxResults:250,...work.token?{syncToken:work.token}:{},...work.page?{pageToken:work.page}:{}});}catch(e){if(e.status===410&&work.token){Object.assign(work,{token:null,page:null,expand:true,rawSeen:[],seen:[]});await checkpoint();continue;}throw e;}
+     take();let result;try{result=await google.events(calendar.id,{singleEvents:false,showDeleted:true,maxResults:250,...work.token?{syncToken:work.token}:{timeMin,timeMax},...work.page?{pageToken:work.page}:{}});}catch(e){if(e.status===410&&work.token){Object.assign(work,{token:null,page:null,expand:true,rawSeen:[],seen:[]});await checkpoint();continue;}throw e;}
      const events=result.items||[];if(events.some(e=>e.recurrence||e.recurringEventId))work.expand=true;
      for(const e of events)if(!e.recurrence)work.rawSeen.push(e.id);
      await merge(calendar,events.filter(e=>!e.recurrence||e.status==='cancelled'||e.extendedProperties?.private?.constanciaSleepPlan));work.page=result.nextPageToken||null;
