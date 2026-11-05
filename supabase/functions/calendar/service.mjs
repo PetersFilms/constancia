@@ -55,7 +55,11 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
    }catch(e){if(e===pause)throw e;if([403,404].includes(e.status)){await change(todo=>{for(const i of todo.items)if(i.google?.calendarId===calendar.id)i.sync={...i.sync,state:'error',error:'Sem acesso a esta agenda; seu histórico foi preservado.'};});delete cursor.work;cursors.__constancia_next=index+1<calendars.length?{id:calendars[index+1].id}:{id:'__operations'};await checkpoint();continue;}throw e;}
   }
   cursors.__constancia_next={id:'__operations'};await checkpoint();
-  await change(todo=>{for(const i of todo.items)if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}});
+  // Pedido do Pedro (05/11/2026): operações de compromissos anteriores à janela (mais de 1 dia atrás) não vão mais ao Google;
+  // a execução marcada no app fica. Conflitos ficam para revisão manual. Séries (Sono) começam no passado mas valem adiante e o
+  // encerramento da antiga precede a substituta: nunca são descartadas. Mesma gravação do ajuste de conta, sem custo extra.
+  const windowStart=timeMin.slice(0,10);
+  await change(todo=>{for(const i of todo.items){if(!i.conflict&&!i.seriesMaster&&!i.sleepPlanId&&(i.event?.start||'').slice(0,10)<windowStart&&(i.pending||i.sync?.state==='error')){delete i.pending;i.sync={...i.sync,state:'synced'};delete i.sync.error;continue;}if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}}});
   const row=await readState(),queue=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
   // Diagnóstico: ms desde a trava até a fila começar e quantas operações cada lote tentou (sai no cursor, sem dado pessoal).
   cursors.__constancia_diag.queueAt=Date.now()-t0;cursors.__constancia_diag.queued=queue.length;

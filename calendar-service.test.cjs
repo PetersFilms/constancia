@@ -89,6 +89,16 @@ test('the multi-megabyte history is read once per run and refreshed only after a
  assert(reads<=3,'releituras demais: '+reads);assert.equal(f.state.todo.items.length,2);assert.equal(f.inserted,1);assert(!f.state.todo.items.find(i=>i.origin==='constancia').pending);
 });
 
+test('pending operations for events before the sync window are dropped without touching Google or the local execution',async()=>{
+ const f=fake(),old={...raw('old'),start:{dateTime:'2026-10-01T09:00:00-03:00'},end:{dateTime:'2026-10-01T10:00:00-03:00'}};f.events.set('old',old);f.events.set('today',raw('today'));
+ const prior=await (await api()).synchronize({db:f.db,google:f.google,user:'user-test',date:'2026-10-01',clock:()=>at});assert(!prior.busy);
+ const io=f.state.todo.items.find(i=>i.google.eventId==='old'),it=f.state.todo.items.find(i=>i.google.eventId==='today');
+ T.setStatus(f.state.todo,io.id,'completed',null,at);T.setStatus(f.state.todo,it.id,'completed',null,at);await run(f);
+ assert.equal(f.events.get('old').summary,'Consulta');assert.equal(f.events.get('today').summary,'✓ Consulta');
+ const o=f.state.todo.items.find(i=>i.id===io.id);assert(!o.pending);assert.equal(o.sync.state,'synced');assert.equal(o.execution.status,'completed');
+ const g=fake(),s=T.create(g.state.todo,{...event,start:'2026-09-01T09:00:00.000Z',end:'2026-09-01T10:00:00.000Z'},at,'primary','account-a');s.seriesMaster=true;s.sleepPlanId='plan';
+ g.google.insert=async()=>{throw Error('offline');};await run(g);assert(g.state.todo.items.find(i=>i.id===s.id).pending,'série antiga não pode perder a operação');
+});
 test('a stuck head operation does not starve newer queued operations under a small page budget',async()=>{
  const f=fake();f.events.set('a',raw('a'));f.events.set('b',{...raw('b'),summary:'Reunião'});await run(f);
  const ia=f.state.todo.items.find(i=>i.google.eventId==='a'),ib=f.state.todo.items.find(i=>i.google.eventId==='b');
