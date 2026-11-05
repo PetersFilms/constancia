@@ -99,6 +99,28 @@ test('pending operations for events before the sync window are dropped without t
  const g=fake(),s=T.create(g.state.todo,{...event,start:'2026-09-01T09:00:00.000Z',end:'2026-09-01T10:00:00.000Z'},at,'primary','account-a');s.seriesMaster=true;s.sleepPlanId='plan';
  g.google.insert=async()=>{throw Error('offline');};await run(g);assert(g.state.todo.items.find(i=>i.id===s.id).pending,'série antiga não pode perder a operação');
 });
+test('status prefix mirrored by the organizer onto an attendee copy is not a conflict and the copy still gets its own marker',async()=>{
+ const f=fake(),guest=e=>({...e,organizer:{email:'org@example.com'}});f.events.set('inv',guest(raw('inv')));await run(f);
+ const i=f.state.todo.items[0];T.setStatus(f.state.todo,i.id,'completed',null,at);
+ f.events.set('inv',guest({...raw('inv'),summary:'✓ Consulta',etag:'"mirror"'}));await run(f);
+ const a=f.state.todo.items[0];assert(!a.conflict);assert(!a.pending);assert.equal(a.event.title,'Consulta');assert.equal(f.events.get('inv').extendedProperties.private.constanciaCompleted,'true');
+ const g=fake();g.events.set('own',{...raw('own'),organizer:{email:'me@example.com',self:true}});await run(g);
+ g.events.set('own',{...raw('own'),organizer:{email:'me@example.com',self:true},summary:'✓ Consulta',etag:'"mine"'});await run(g);assert.equal(g.state.todo.items[0].event.title,'✓ Consulta');
+});
+test('a saved conflict that differs only by a status prefix heals; a real title edit stays for manual review',async()=>{
+ const f=fake(),guest=e=>({...e,organizer:{email:'org@example.com'}});f.events.set('inv',guest(raw('inv')));f.events.set('real',guest(raw('real')));await run(f);
+ const mirror=f.state.todo.items.find(i=>i.google.eventId==='inv'),real=f.state.todo.items.find(i=>i.google.eventId==='real');
+ T.setStatus(f.state.todo,mirror.id,'in_progress',null,at);T.setStatus(f.state.todo,real.id,'completed',null,at);
+ const remote=title=>({title,description:'',allDay:false,start:raw('x').start.dateTime,end:raw('x').end.dateTime,timeZone:cal.timeZone});
+ const m=f.state.todo.items.find(i=>i.id===mirror.id),r=f.state.todo.items.find(i=>i.id===real.id);
+ m.conflict={local:T.copy(m.pending.event),remote:remote('⏳ Consulta'),reason:'edited'};m.sync.state='conflict';m.event.title='⏳ Consulta';
+ r.conflict={local:T.copy(r.pending.event),remote:remote('Outro título'),reason:'edited'};r.sync.state='conflict';
+ f.events.set('inv',guest({...raw('inv'),summary:'⏳ Consulta',etag:'"mirror"'}));
+ await run(f);
+ const a=f.state.todo.items.find(i=>i.id===mirror.id),b=f.state.todo.items.find(i=>i.id===real.id);
+ assert(!a.conflict);assert(!a.pending);assert.equal(a.event.title,'Consulta');assert.equal(f.events.get('inv').extendedProperties.private.constanciaInProgress,'true');
+ assert(b.conflict);assert(b.pending);
+});
 test('a stuck head operation does not starve newer queued operations under a small page budget',async()=>{
  const f=fake();f.events.set('a',raw('a'));f.events.set('b',{...raw('b'),summary:'Reunião'});await run(f);
  const ia=f.state.todo.items.find(i=>i.google.eventId==='a'),ib=f.state.todo.items.find(i=>i.google.eventId==='b');
