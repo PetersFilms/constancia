@@ -71,7 +71,8 @@ export async function handler(req:Request){
   const linked=await rest('constancia_calendar_connections?'+filter+'&select=account_id,reconnect');if(!linked?.length||linked[0].reconnect)throw new ProviderError(401,'Reconecte sua conta Google para sincronizar.');
   let connection:any,tokens:any,currentLease:string;
   const db={
-   claim:async(lease:string)=>{const rows=await rest('constancia_calendar_connections?'+filter+'&lease_until=lt.'+encodeURIComponent(new Date().toISOString()),{method:'PATCH',body:JSON.stringify({lease_id:lease,lease_until:new Date(Date.now()+120000).toISOString()})});if(rows?.length)currentLease=lease;return !!rows?.length;},
+   // Espera até 45s pela trava: o próprio aparelho dispara calendars/watch junto do sync, e um lote em andamento termina em ≤40s.
+   claim:async(lease:string)=>{for(const until=Date.now()+45000;;){const rows=await rest('constancia_calendar_connections?'+filter+'&lease_until=lt.'+encodeURIComponent(new Date().toISOString()),{method:'PATCH',body:JSON.stringify({lease_id:lease,lease_until:new Date(Date.now()+120000).toISOString()})});if(rows?.length){currentLease=lease;return true;}if(Date.now()>until)return false;await new Promise(r=>setTimeout(r,1500));}},
    release:async(lease:string)=>{await rest('constancia_calendar_connections?'+filter+'&lease_id=eq.'+lease,{method:'PATCH',body:JSON.stringify({lease_id:null,lease_until:'1970-01-01T00:00:00Z'})});},
    connection:async()=>{const rows=await rest('constancia_calendar_connections?'+filter);connection=rows?.[0];if(!connection)throw new ProviderError(401,'Conecte sua conta Google.');try{tokens=await decrypt(connection.token_box);}catch{await db.saveConnection({reconnect:true});throw new ProviderError(401,'Reconecte sua conta Google; os registros permanecem protegidos.');}return connection;},
    readState:async()=>{const rows=await rest('constancia_states?'+filter+'&select=state,revision',{},user.jwt);return rows?.[0];},

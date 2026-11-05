@@ -6,8 +6,10 @@ export const itemId=async(calendar,e)=>'g-'+(await digest(calendar+'|'+e.id+'|'+
 export class ProviderError extends Error{constructor(status,message='Falha na agenda'){super(message);this.status=status;}}
 // Injectable adapter: the test suite never calls a real Google calendar.
 export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0,refresh=false}){
- const lease=crypto.randomUUID(),at=clock(),deadline=Date.now()+40000,pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
+ const lease=crypto.randomUUID(),at=clock(),pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
  if(!await db.claim(lease))return {busy:true};
+ // O prazo conta a partir da trava: a espera pelo claim não pode comer o tempo do lote.
+ const deadline=Date.now()+40000;
  const check=()=>{if(Date.now()>deadline)throw pause;};
  const take=()=>{check();if(remaining--<=0)throw pause;};
  const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,calendarSyncedVersion:jobNoticeVersion,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
