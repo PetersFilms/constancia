@@ -8,8 +8,9 @@ export class ProviderError extends Error{constructor(status,message='Falha na ag
 export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0,refresh=false}){
  const lease=crypto.randomUUID(),at=clock(),pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
  if(!await db.claim(lease))return {busy:true};
- // O prazo conta a partir da trava: a espera pelo claim não pode comer o tempo do lote.
- const deadline=Date.now()+40000;
+ // O prazo conta a partir da trava: a espera pelo claim não pode comer o tempo do lote. Com o histórico de ~5 MB, cada leitura/gravação leva segundos;
+ // 100s + espera da trava (15s) ficam abaixo do limite de 150s da Edge Function.
+ const t0=Date.now(),deadline=t0+100000;
  const check=()=>{if(Date.now()>deadline)throw pause;};
  const take=()=>{check();if(remaining--<=0)throw pause;};
  const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,calendarSyncedVersion:jobNoticeVersion,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
@@ -21,7 +22,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
  async function merge(calendar,events){return change(async todo=>{for(const e of events)T.importEvent(todo,calendar,e,await itemId(calendar.id,e),clock());});}
  const checkpoint=()=>db.saveConnection({cursors});
  try{
-  connection=await db.connection();cursors=T.copy(connection.cursors||{});jobNoticeVersion=cursors.__constancia_notice_version??noticeVersion;cursors.__constancia_notice_version=jobNoticeVersion;calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
+  connection=await db.connection();cursors=T.copy(connection.cursors||{});cursors.__constancia_diag={start:new Date(t0).toISOString(),ops:0};jobNoticeVersion=cursors.__constancia_notice_version??noticeVersion;cursors.__constancia_notice_version=jobNoticeVersion;calendars=(await google.calendars()).filter(c=>T.calendarAllowed(c.id)).map(c=>({...c,accountId:connection.account_id}));
   // Conflict resolution may discard imports the sync token already acknowledged; one expansion pass re-reads them while keeping tokens and identityVersion.
   if(refresh){for(const [id,cursor] of Object.entries(cursors))if(!id.startsWith('__')&&cursor&&typeof cursor==='object'){delete cursor.fullDay;delete cursor.work;}cursors.__constancia_next=null;await checkpoint();}
   // Janela enxuta: alterações no Google chegam no máximo 1 dia para trás; itens mais antigos ficam no estado e nunca são verificados nem marcados como apagados.
@@ -56,10 +57,12 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   cursors.__constancia_next={id:'__operations'};await checkpoint();
   await change(todo=>{for(const i of todo.items)if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}});
   const row=await readState(),queue=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
+  // Diagnóstico: ms desde a trava até a fila começar e quantas operações cada lote tentou (sai no cursor, sem dado pessoal).
+  cursors.__constancia_diag.queueAt=Date.now()-t0;cursors.__constancia_diag.queued=queue.length;
   // Rodízio: retoma após a última operação que gastou orçamento; com pageBudget pequeno, uma operação presa no início da fila esfomearia as novas para sempre.
   const rotate=queue.findIndex(i=>i.pending.operationId===cursors.__constancia_op_after)+1,operations=[...queue.slice(rotate),...queue.slice(0,rotate)];
   for(const queued of operations){
-   take();cursors.__constancia_op_after=queued.pending.operationId;let snapshot=(await readState()).state.todo?.items.find(i=>i.id===queued.id);if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;if(snapshot.pending.dependsOn?.length){const latest=await readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
+   take();cursors.__constancia_op_after=queued.pending.operationId;cursors.__constancia_diag.ops++;cursors.__constancia_diag.lastOpAt=Date.now()-t0;let snapshot=(await readState()).state.todo?.items.find(i=>i.id===queued.id);if(!snapshot?.pending||snapshot.conflict||snapshot.sync?.externalDeleted)continue;if(snapshot.pending.dependsOn?.length){const latest=await readState();if(snapshot.pending.dependsOn.some(id=>{const i=latest.state.todo.items.find(i=>i.id===id);return i?.pending||i?.conflict;}))continue;}const primary=calendars.find(c=>c.primary),calendar=calendars.find(c=>c.id===snapshot.google.calendarId)||(snapshot.google.calendarId==='primary'?primary:null);
    let op=snapshot.pending.operationId;
    if(snapshot.pending.accountId!==connection.account_id||!calendar||!['owner','writer'].includes(calendar.accessRole)){
     await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:snapshot.pending.accountId!==connection.account_id?'O compromisso pertence a outra conta Google. Reconecte a conta original.':'Esta agenda não permite edição. A execução foi salva no Constância.'};});continue;
@@ -118,5 +121,5 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   }
   cursors.__constancia_next=null;delete cursors.__constancia_notice_version;await db.saveConnection({cursors,last_sync:clock()});
   return answer(false);
- }catch(e){if(e!==pause)throw e;await checkpoint();return answer(true);}finally{await db.release(lease);}
+ }catch(e){if(e!==pause)throw e;cursors.__constancia_diag.endAt=Date.now()-t0;await checkpoint();return answer(true);}finally{await db.release(lease);}
 }
