@@ -8,9 +8,9 @@ export class ProviderError extends Error{constructor(status,message='Falha na ag
 export async function synchronize({db,google,user,date,clock=()=>new Date().toISOString(),pageBudget=Infinity,noticeVersion=0,refresh=false}){
  const lease=crypto.randomUUID(),at=clock(),pause=Symbol('continue');let remaining=pageBudget,cursors={},calendars=[],connection,jobNoticeVersion=noticeVersion;
  if(!await db.claim(lease))return {busy:true};
- // O prazo conta a partir da trava: a espera pelo claim não pode comer o tempo do lote. Com o histórico de ~5 MB, cada leitura/gravação leva segundos;
- // 100s + espera da trava (15s) ficam abaixo do limite de 150s da Edge Function.
- const t0=Date.now(),deadline=t0+100000;
+ // O prazo conta a partir da trava: a espera pelo claim não pode comer o tempo do lote. Trava (15s) + prazo (70s) + uma
+ // leitura/gravação do histórico iniciada no limite (60s) ficam abaixo dos 150s da Edge Function.
+ const t0=Date.now(),deadline=t0+70000;
  const check=()=>{if(Date.now()>deadline)throw pause;};
  const take=()=>{check();if(remaining--<=0)throw pause;};
  const answer=partial=>({accountId:connection.account_id,connected:true,configured:true,reconnect:false,partial,calendarSyncedVersion:jobNoticeVersion,lastSync:partial?connection.last_sync:clock(),calendars:calendars.map(({id,summary,primary,accessRole,timeZone})=>({id,summary,primary,accessRole,timeZone}))});
@@ -121,5 +121,12 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
   }
   cursors.__constancia_next=null;delete cursors.__constancia_notice_version;await db.saveConnection({cursors,last_sync:clock()});
   return answer(false);
- }catch(e){if(e!==pause)throw e;cursors.__constancia_diag.endAt=Date.now()-t0;await checkpoint();return answer(true);}finally{await db.release(lease);}
+ }catch(e){
+  if(e!==pause){
+   // Na fase da fila o cursor só carrega rodízio e diagnóstico; gravar o motivo da falha ali não arrisca progresso parcial de importação.
+   if(cursors.__constancia_next?.id==='__operations'&&cursors.__constancia_diag){cursors.__constancia_diag.endAt=Date.now()-t0;cursors.__constancia_diag.error=String(e?.name||'Error')+':'+String(e?.status??'').slice(0,6);await checkpoint().catch(()=>{});}
+   throw e;
+  }
+  cursors.__constancia_diag.endAt=Date.now()-t0;await checkpoint();return answer(true);
+ }finally{await db.release(lease);}
 }
