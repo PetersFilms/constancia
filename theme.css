@@ -2,7 +2,7 @@
 @font-face{font-family:Pogonia;src:url('pogonia-regular.woff2') format('woff2');font-style:normal;font-weight:400;font-display:swap}
 @font-face{font-family:Pogonia;src:url('pogonia-medium.woff2') format('woff2');font-style:normal;font-weight:500;font-display:swap}
 @font-face{font-family:Pogonia;src:url('pogonia-semibold.woff2') format('woff2');font-style:normal;font-weight:600 900;font-display:swap}
-:root{--bg:#F3F6F7;--paper:#FCFDFD;--ink:#253745;--muted:#5B6C76;--line:#DCE3E6;--green:#4A5C6A;--pale:#E8EEF0;color-scheme:light;--font:"Pogonia",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+:root{--bg:#F3F6F7;--paper:#FCFDFD;--ink:#253745;--muted:#5B6C76;--line:#DCE3E6;--green:#4A5C6A;--pale:#E8EEF0;--accent:#357D57;--on-green:#FCFDFD;--heat0:#E8EEF0;--heat1:#CFE5D7;--heat2:#9CCDAD;--heat3:#5FA87D;--heat4:#35734F;--glass:#F3F6F7F2;color-scheme:light;--font:"Pogonia",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 body{min-height:100dvh;background:var(--bg);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
 button,input,select,textarea{font-family:var(--font)}
 h1,h2,h3,.brand,.mark,.stat strong,.workout-card strong{font-family:var(--font);font-feature-settings:"kern";}
@@ -53,3 +53,53 @@ main .intro{padding:28px 0 24px;align-items:center;gap:20px}main .intro h1{font-
 @media(max-width:600px){main .intro{padding:24px 0 20px;display:flex;flex-wrap:wrap}main .intro h1{font-size:28px}main .intro .primary{margin-top:0}main .intro .muted{max-width:none}}
 
 @media(max-width:600px){main #bodyPanel .intro{display:flex;flex-wrap:wrap}main #bodyPanel .intro .primary{margin-top:0}main #bodyPanel .intro h1{font-size:28px;max-width:none}}
+
+/* v64 · Acento de recompensa: marcar um hábito merece outra cor além do cinza. */
+.mark{color:var(--on-green)}
+.primary{color:var(--on-green)}
+.check[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--on-green)}
+.habit-row.done .habit-info strong{color:var(--accent)}
+.day-choice input{accent-color:var(--accent)}
+.day-choice:has(input:checked) strong{color:var(--accent)}
+.weekdays input:checked+span{color:var(--on-green)}
+#syncStatus[data-kind=ok]:before{background:var(--accent)}
+#toast{color:var(--bg)}
+.exercise-summary>div,.exercise-editor{background:var(--pale)}
+input::placeholder,textarea::placeholder{color:var(--muted)}
+
+/* v64 · Heatmap de verdade: células em rampa de cor, hoje com anel, futuro fantasma. */
+.day{background:var(--heat0);color:var(--ink)}
+.day[data-level='1']{background:var(--heat1);color:var(--ink)}
+.day[data-level='2']{background:var(--heat2);color:var(--ink)}
+.day[data-level='3']{background:var(--heat3);color:var(--ink)}
+.day[data-level='4']{background:var(--heat4);color:var(--on-green)}
+.day:disabled{background:transparent;box-shadow:inset 0 0 0 1px var(--line)}
+.day.today{outline:2px solid var(--accent);outline-offset:1px}
+.legend i{background:var(--heat1)}.legend i:nth-of-type(2){background:var(--heat2)}.legend i:nth-of-type(3){background:var(--heat3)}.legend i:nth-of-type(4){background:var(--heat4)}
+
+/* v64 · Celular: estatísticas numa faixa única e lista de hábitos mais densa. */
+@media(max-width:600px){
+ .stats{gap:0;background:var(--paper);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+ .stats .stat{border:0;border-radius:0;box-shadow:none;background:transparent;padding:14px 8px 12px;text-align:center}
+ .stats .stat+.stat{border-left:1px solid var(--line)}
+ .stats .stat strong{font-size:24px;margin:6px 0 2px}
+ .stats .stat .label{font-size:10px;letter-spacing:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .stats .stat small{display:none}
+ .habit-row{min-height:76px}
+ .check{width:38px;height:38px}
+ .date-nav button{width:36px;height:44px;font-size:22px}
+ .card{padding:20px 15px}
+ .page-tabs{background:var(--glass)}
+}
+
+/* v64 · Modo escuro: mesmos tokens, noite de ardósia; o app de sono não precisa dar flashbang. */
+@media(prefers-color-scheme:dark){
+ :root{--bg:#121A20;--paper:#1B2630;--ink:#E7EDF1;--muted:#93A4AF;--line:#2C3A44;--green:#5B7488;--pale:#243039;--accent:#58AA7D;--on-green:#F5FAF7;--heat0:#223039;--heat1:#28473A;--heat2:#346A4C;--heat3:#4C9168;--heat4:#6DC08D;--glass:#121A20F2;color-scheme:dark}
+ .day[data-level='4']{color:#10231A}
+ .primary:hover{background:#6B8498;border-color:#6B8498}
+ .workout-card:hover{background:var(--pale)}.workout-card[aria-pressed=true]{background:var(--pale);border-color:var(--green)}
+ .page-tabs button[aria-pressed=true]{background:var(--pale);color:var(--ink)}
+ .data-status{background:#2E2619;border-color:#564423;color:#E2C98F}
+ #syncStatus[data-kind=conflict]:before{background:#C9A86A}
+ .card,.stat,dialog{box-shadow:none}
+}
