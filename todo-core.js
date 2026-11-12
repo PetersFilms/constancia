@@ -146,6 +146,6 @@
   if(!sameEvent(before,item.event)||before.timeZone!==item.event.timeZone)audit(todo,item,'google_updated',before,item.event,at,'google-'+id+'-'+String(raw.etag||raw.updated||at).replace(/[^a-zA-Z0-9]/g,''));
   return item;
  }
- root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,calendarVisible,logicalItems,hiddenCalendarCount,startDay,endDay,carryover,onDay,view,metrics,duplicateGroups,providerEvent,sameEvent,statusPrefix,importEvent};
+ root.ToDoCore={STATUSES,LABELS,seed,copy,validate,day,shift,localTime,fromLocal,schedule,create,setStatus,edit,resolve,active,calendarAllowed,calendarVisible,logicalItems,hiddenCalendarCount,startDay,endDay,carryover,onDay,view,metrics,duplicateGroups,providerEvent,sameEvent,statusPrefix,queue,importEvent};
  if(typeof module!=='undefined')module.exports=root.ToDoCore;
 })(typeof window!=='undefined'?window:globalThis);

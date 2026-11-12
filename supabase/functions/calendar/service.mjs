@@ -55,12 +55,24 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
    }catch(e){if(e===pause)throw e;if([403,404].includes(e.status)){await change(todo=>{for(const i of todo.items)if(i.google?.calendarId===calendar.id)i.sync={...i.sync,state:'error',error:'Sem acesso a esta agenda; seu histórico foi preservado.'};});delete cursor.work;cursors.__constancia_next=index+1<calendars.length?{id:calendars[index+1].id}:{id:'__operations'};await checkpoint();continue;}throw e;}
   }
   cursors.__constancia_next={id:'__operations'};await checkpoint();
-  // Pedido do Pedro (05/11/2026): operações de compromissos anteriores à janela (mais de 1 dia atrás) não vão mais ao Google;
-  // a execução marcada no app fica. Conflitos ficam para revisão manual. Séries (Sono) começam no passado mas valem adiante e o
-  // encerramento da antiga precede a substituta: nunca são descartadas. Mesma gravação do ajuste de conta, sem custo extra.
-  const windowStart=timeMin.slice(0,10);
+  // Pedido do Pedro: a fila não carrega acúmulo velho. Critério é a ÚLTIMA ALTERAÇÃO LOCAL do item (history), não a data do evento —
+  // concluir dias depois um compromisso passado precisa chegar ao Google. Operação parada há mais de 7 dias sai; a execução local fica.
+  // Marcação recente cuja operação se perdeu volta à fila; "pendente" sem operação assenta. Conflitos e séries (Sono) nunca são tocados.
+  const staleBefore=new Date(Date.parse(clock())-7*86400000).toISOString(),remoteTypes=['imported','google_updated','external_deleted'];
   // Conflito salvo que difere só pelo prefixo de estado é eco do organizador, não edição: volta para a fila. Edição real segue para revisão manual.
-  await change(todo=>{for(const i of todo.items){if(i.pending&&i.conflict?.reason==='edited'&&i.conflict.remote&&T.sameEvent({...i.conflict.remote,title:String(i.conflict.remote.title).replace(T.statusPrefix,'')},i.pending.event)){delete i.conflict;i.event={...i.event,...T.copy(i.pending.event)};i.sync={...i.sync,state:'pending'};delete i.sync.error;}if(!i.conflict&&!i.seriesMaster&&!i.sleepPlanId&&(i.event?.start||'').slice(0,10)<windowStart&&(i.pending||i.sync?.state==='error')){delete i.pending;i.sync={...i.sync,state:'synced'};delete i.sync.error;continue;}if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}}});
+  await change(todo=>{
+   const localAt={};for(const h of todo.history||[])if(!remoteTypes.includes(h.type)&&(localAt[h.itemId]||'')<h.at)localAt[h.itemId]=h.at;
+   for(const i of todo.items){
+    if(i.pending&&i.conflict?.reason==='edited'&&i.conflict.remote&&T.sameEvent({...i.conflict.remote,title:String(i.conflict.remote.title).replace(T.statusPrefix,'')},i.pending.event)){delete i.conflict;i.event={...i.event,...T.copy(i.pending.event)};i.sync={...i.sync,state:'pending'};delete i.sync.error;}
+    if(i.conflict||i.seriesMaster||i.sleepPlanId||i.sync?.externalDeleted)continue;
+    const recent=(localAt[i.id]||'')>=staleBefore,status=i.execution?.status;
+    if(!recent&&(i.pending||i.sync?.state==='error')){delete i.pending;i.sync={...i.sync,state:'synced'};delete i.sync.error;continue;}
+    const mismatch=i.google?.eventId&&((status==='completed')!==!!i.google.completedMarker||(status==='in_progress')!==!!i.google.inProgressMarker||(status==='canceled')!==!!i.google.canceledMarker);
+    if(!i.pending&&recent&&mismatch&&i.google.writable)T.queue(i);
+    else if(!i.pending&&i.sync?.state==='pending')i.sync={...i.sync,state:'synced'};
+    if(i.pending&&!i.pending.accountId&&!i.google?.accountId){i.pending.accountId=connection.account_id;i.google.accountId=connection.account_id;}
+   }
+  });
   const row=await readState(),queue=(row.state.todo?.items||[]).filter(i=>i.pending&&!i.conflict&&!i.sync?.externalDeleted);
   // Diagnóstico: ms desde a trava até a fila começar e quantas operações cada lote tentou (sai no cursor, sem dado pessoal).
   cursors.__constancia_diag.queueAt=Date.now()-t0;cursors.__constancia_diag.queued=queue.length;

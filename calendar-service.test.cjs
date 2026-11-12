@@ -89,15 +89,25 @@ test('the multi-megabyte history is read once per run and refreshed only after a
  assert(reads<=3,'releituras demais: '+reads);assert.equal(f.state.todo.items.length,2);assert.equal(f.inserted,1);assert(!f.state.todo.items.find(i=>i.origin==='constancia').pending);
 });
 
-test('pending operations for events before the sync window are dropped without touching Google or the local execution',async()=>{
- const f=fake(),old={...raw('old'),start:{dateTime:'2026-10-01T09:00:00-03:00'},end:{dateTime:'2026-10-01T10:00:00-03:00'}};f.events.set('old',old);f.events.set('today',raw('today'));
- const prior=await (await api()).synchronize({db:f.db,google:f.google,user:'user-test',date:'2026-10-01',clock:()=>at});assert(!prior.busy);
- const io=f.state.todo.items.find(i=>i.google.eventId==='old'),it=f.state.todo.items.find(i=>i.google.eventId==='today');
- T.setStatus(f.state.todo,io.id,'completed',null,at);T.setStatus(f.state.todo,it.id,'completed',null,at);await run(f);
- assert.equal(f.events.get('old').summary,'Consulta');assert.equal(f.events.get('today').summary,'✓ Consulta');
- const o=f.state.todo.items.find(i=>i.id===io.id);assert(!o.pending);assert.equal(o.sync.state,'synced');assert.equal(o.execution.status,'completed');
- const g=fake(),s=T.create(g.state.todo,{...event,start:'2026-09-01T09:00:00.000Z',end:'2026-09-01T10:00:00.000Z'},at,'primary','account-a');s.seriesMaster=true;s.sleepPlanId='plan';
+test('a status marked days after an old event still reaches Google; only operations whose last local change is over 7 days old are dropped',async()=>{
+ const f=fake(),old=id=>({...raw(id),start:{dateTime:'2026-10-01T09:00:00-03:00'},end:{dateTime:'2026-10-01T10:00:00-03:00'}});f.events.set('late',old('late'));f.events.set('stale',old('stale'));await run(f);
+ const late=f.state.todo.items.find(i=>i.google.eventId==='late'),stale=f.state.todo.items.find(i=>i.google.eventId==='stale');
+ T.setStatus(f.state.todo,late.id,'completed',null,at);T.setStatus(f.state.todo,stale.id,'completed',null,'2026-10-02T12:00:00.000Z');await run(f);
+ assert.equal(f.events.get('late').summary,'✓ Consulta');assert.equal(f.events.get('stale').summary,'Consulta');
+ const o=f.state.todo.items.find(i=>i.id===stale.id);assert(!o.pending);assert.equal(o.sync.state,'synced');assert.equal(o.execution.status,'completed');
+ const g=fake(),s=T.create(g.state.todo,{...event,start:'2026-09-01T09:00:00.000Z',end:'2026-09-01T10:00:00.000Z'},'2026-09-01T00:00:00.000Z','primary','account-a');s.seriesMaster=true;s.sleepPlanId='plan';
  g.google.insert=async()=>{throw Error('offline');};await run(g);assert(g.state.todo.items.find(i=>i.id===s.id).pending,'série antiga não pode perder a operação');
+});
+test('a recent status whose operation was lost is queued again; an orphan pending state without operation settles',async()=>{
+ const f=fake();f.events.set('lost',raw('lost'));f.events.set('orphan',raw('orphan'));f.events.set('old',raw('old'));await run(f);
+ const by=id=>f.state.todo.items.find(i=>i.google.eventId===id);
+ T.setStatus(f.state.todo,by('lost').id,'completed',null,at);delete by('lost').pending;by('lost').sync.state='synced';
+ by('orphan').sync.state='pending';
+ T.setStatus(f.state.todo,by('old').id,'completed',null,'2026-09-20T12:00:00.000Z');delete by('old').pending;by('old').sync.state='synced';
+ await run(f);
+ assert.equal(f.events.get('lost').summary,'✓ Consulta');assert(!by('lost').pending);assert.equal(by('lost').google.completedMarker,true);
+ assert.equal(by('orphan').sync.state,'synced');assert.equal(f.events.get('orphan').summary,'Consulta');
+ assert.equal(f.events.get('old').summary,'Consulta','marcação antiga perdida não é ressuscitada');
 });
 test('status prefix mirrored by the organizer onto an attendee copy is not a conflict and the copy still gets its own marker',async()=>{
  const f=fake(),guest=e=>({...e,organizer:{email:'org@example.com'}});f.events.set('inv',guest(raw('inv')));await run(f);
