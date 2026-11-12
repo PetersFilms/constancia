@@ -141,7 +141,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
  }catch(e){
   if(e!==pause){
    // Na fase da fila o cursor só carrega rodízio e diagnóstico; gravar o motivo da falha ali não arrisca progresso parcial de importação.
-   if(cursors.__constancia_next?.id==='__operations'&&cursors.__constancia_diag){cursors.__constancia_diag.endAt=Date.now()-t0;cursors.__constancia_diag.error=String(e?.name||'Error')+':'+String(e?.status??'').slice(0,6);await checkpoint().catch(()=>{});}
+   if(cursors.__constancia_next?.id==='__operations'&&cursors.__constancia_diag){cursors.__constancia_diag.endAt=Date.now()-t0;cursors.__constancia_diag.error=String(e?.name||'Error')+':'+String(e?.status??'').slice(0,6)+(e?.code?':'+e.code:'');await checkpoint().catch(()=>{});}
    throw e;
   }
   cursors.__constancia_diag.endAt=Date.now()-t0;await checkpoint();return answer(true);
