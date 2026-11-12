@@ -31,6 +31,11 @@
   async insert(item){if(!authReady||session?.expires_at&&session.expires_at*1000<Date.now()+30000)await resumeSession();if(!this.available())throw Error('Entre na sua conta e vincule o histórico para enviar ao cérebro.');const {error}=await client.from('constancia_brain_inbox').insert({user_id:session.user.id,kind:item.kind,content:item.content,note:item.note,created_at:item.created_at});if(error)throw Error('Não foi possível enviar a captura agora.');},
   async list(limit=20){if(!this.available())return [];const {data,error}=await client.from('constancia_brain_inbox').select('id,created_at,kind,note,status,result').order('created_at',{ascending:false}).limit(limit);if(error)throw Error('Não foi possível carregar as capturas.');return data||[];}
  };
+ // Lembrete diário: ações da função push com a sessão deste aparelho.
+ window.ConstanciaPushCloud={
+  available:()=>!!session&&engine.owned(session.user.id),
+  async invoke(action,body={}){if(!authReady||session?.expires_at&&session.expires_at*1000<Date.now()+30000)await resumeSession();if(!this.available())throw Error('Entre na sua conta para ativar o lembrete.');const {data:result,error}=await client.functions.invoke('push',{body:{action,...body}});if(error){let note;try{note=(await error.context?.json())?.error;}catch{}throw Error(note||'Não foi possível salvar o lembrete. Confira a conexão.');}if(result?.error)throw Error(result.error);return result;}
+ };
  window.ConstanciaCalendar={
   context:()=>({ready:authReady,signedIn:!!session,linked:!!session&&engine.owned(session.user.id),blocked:data.blocked(),standalone:!!navigator.standalone||matchMedia('(display-mode: standalone)').matches}),
   resume:resumeSession,available:()=>!!session&&engine.owned(session.user.id)&&!data.blocked(),

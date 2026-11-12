@@ -3,3 +3,7 @@ project_id = "constancia"
 [functions.calendar]
 # The callback has no Supabase JWT. POST routes validate the JWT with Auth first.
 verify_jwt = false
+
+[functions.push]
+# /cron vem do agendamento do banco, sem JWT. As ações POST validam o JWT com Auth.
+verify_jwt = false
