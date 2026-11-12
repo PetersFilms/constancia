@@ -132,7 +132,7 @@ export async function synchronize({db,google,user,date,clock=()=>new Date().toIS
     if(e===pause)throw e;
     if(e.status===412){await merge(calendar,[await google.get(calendar.id,snapshot.google.eventId)]);continue;}
     if([404,410].includes(e.status)&&snapshot.google.eventId){await merge(calendar,[{id:snapshot.google.eventId,status:'cancelled'}]);continue;}
-    await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:e.status===401?'A autorização expirou. Reconecte sua conta Google.':e.status===409?e.message:'Não foi possível enviar. O registro está protegido; tente sincronizar novamente.'};});
+    await change(todo=>{const i=todo.items.find(i=>i.id===snapshot.id);if(i?.pending?.operationId===op)i.sync={...i.sync,state:'error',error:e.status===401?'A autorização expirou. Reconecte sua conta Google.':e.status===409?e.message:'Não foi possível enviar. O registro está protegido; tente sincronizar novamente.'+(e?.status||e?.code?' ('+[e?.status,e?.code].filter(Boolean).join(' ')+')':'')};});
     if(e.status===401)throw e;
    }
   }
