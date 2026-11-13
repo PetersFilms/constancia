@@ -16,3 +16,15 @@ header .brand:hover{background:transparent}.brand-menu{margin-left:12px;font-siz
 /* Updates lead the settings sheet only while a new version is ready. */
 .brand-menu{position:relative;display:inline-flex;align-items:center}.update-dot{position:absolute;top:-2px;right:-4px;width:7px;height:7px;border-radius:50%;background:#A54E3D;box-shadow:0 0 0 2px var(--bg)}.update-dot[hidden]{display:none}
 .settings-update{padding:0 0 22px;border-top:0}.settings-update button{width:100%;display:flex;justify-content:space-between;align-items:center;min-height:44px;border-radius:14px;font-size:13px}.settings-update .settings-hint{margin-top:8px}
+
+/* Lembretes: cada aviso numa linha — nome e estado à esquerda, horário e botão à direita. */
+.reminder-row{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.reminder-row:last-of-type{border-bottom:0}
+.reminder-info{flex:1 1 150px;min-width:0}
+.reminder-info strong{white-space:nowrap}
+.reminder-controls{margin-left:auto}
+.reminder-info strong{font-size:13px;font-weight:550}
+.reminder-info p{margin:4px 0 0;font-size:11px;line-height:1.6;color:var(--muted)}
+.reminder-controls{display:flex;gap:8px;align-items:center;flex-shrink:0}
+.reminder-controls input[type=time]{font-size:16px;min-height:44px;max-width:108px;border:1px solid var(--line);border-radius:12px;padding:8px 10px;background:var(--paper);color:var(--ink)}
+.reminder-controls button{font-size:12px;min-height:44px;border-radius:12px;padding:10px 12px}

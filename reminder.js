@@ -20,7 +20,7 @@
    const on=!!current?.enabled;
    toggle.textContent=on?'Desativar':'Ativar';
    time.disabled=busy;toggle.disabled=busy;
-   note.textContent=message??(on?'Ativo neste aparelho às '+time.value+'.':idle);
+   note.textContent=message??(on?'Ativo às '+time.value+'.':idle);
   }
   async function refresh(){
    if(!supported()){toggle.disabled=true;time.disabled=true;note.textContent='Este navegador não recebe notificações. No iPhone, instale o Constância pela tela de início.';return;}
@@ -59,6 +59,6 @@
   window.addEventListener('constancia:account',refresh);
   refresh();
  }
- control({kind:'habitos',toggleId:'reminderToggle',timeId:'reminderTime',noteId:'reminderStatus',idle:'Uma notificação por dia para marcar os hábitos, neste aparelho.'});
- control({kind:'sono',toggleId:'reminderSleepToggle',timeId:'reminderSleepTime',noteId:'reminderSleepStatus',idle:'Chega cedo e espera na tela de bloqueio: na primeira pegada do celular, o sono já pede registro.'});
+ control({kind:'habitos',toggleId:'reminderToggle',timeId:'reminderTime',noteId:'reminderStatus',idle:'Um aviso por dia para marcar os hábitos.'});
+ control({kind:'sono',toggleId:'reminderSleepToggle',timeId:'reminderSleepTime',noteId:'reminderSleepStatus',idle:'Chega cedo e espera na tela de bloqueio.'});
 })();
