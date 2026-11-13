@@ -24,6 +24,7 @@ async function userFor(req:Request){
 function validSubscription(sub:any){
  try{const url=new URL(sub?.endpoint);return url.protocol==='https:'&&typeof sub?.keys?.p256dh==='string'&&typeof sub?.keys?.auth==='string';}catch{return false;}
 }
+const MESSAGES:Record<string,string>={habitos:'Hora de marcar seus hábitos de hoje.',sono:'Bom dia. Registre como foi sua noite de sono.'};
 async function sendDue(){
  const rows=await rest('constancia_push_reminders?enabled=is.true&select=*')||[];
  const now=Date.now(),targets=due(rows,now);
@@ -31,7 +32,7 @@ async function sendDue(){
  for(const row of targets){
   const today=localParts(now,row.tz).date;
   try{
-   await webpush.sendNotification(row.subscription,JSON.stringify({title:'Constância',body:'Hora de marcar seus hábitos de hoje.'}),{vapidDetails:vapid(),TTL:3600});
+   await webpush.sendNotification(row.subscription,JSON.stringify({title:'Constância',body:MESSAGES[row.kind]||MESSAGES.habitos,tag:'constancia-'+(row.kind||'habitos')}),{vapidDetails:vapid(),TTL:3600});
    await rest('constancia_push_reminders?id=eq.'+row.id,{method:'PATCH',body:JSON.stringify({last_sent:today})});sent++;
   }catch(failure:any){
    // Assinatura morta (aparelho desinstalou/revogou): desativa em vez de insistir.
@@ -53,19 +54,20 @@ export async function handler(req:Request){
  try{
   const user=await userFor(req);
   const body=await req.json().catch(()=>({}));
+  const kind=['habitos','sono'].includes(body.kind)?body.kind:'habitos';
   if(body.action==='save'){
    if(!validSubscription(body.subscription))return json({error:'Inscrição de notificação inválida.'},400,cors);
    if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(body.remind_at||''))return json({error:'Horário inválido.'},400,cors);
    const tz=typeof body.tz==='string'&&body.tz.length<=64?body.tz:'America/Sao_Paulo';
-   await rest('constancia_push_reminders?on_conflict=user_id,endpoint',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:user,endpoint:body.subscription.endpoint,subscription:body.subscription,remind_at:body.remind_at,tz,enabled:true,last_sent:null})});
+   await rest('constancia_push_reminders?on_conflict=user_id,endpoint,kind',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify({user_id:user,endpoint:body.subscription.endpoint,subscription:body.subscription,remind_at:body.remind_at,tz,kind,enabled:true,last_sent:null})});
    return json({enabled:true,remind_at:body.remind_at},200,cors);
   }
   if(body.action==='disable'){
-   await rest('constancia_push_reminders?user_id=eq.'+user+'&endpoint=eq.'+encodeURIComponent(body.endpoint||''),{method:'PATCH',body:JSON.stringify({enabled:false})});
+   await rest('constancia_push_reminders?user_id=eq.'+user+'&kind=eq.'+kind+'&endpoint=eq.'+encodeURIComponent(body.endpoint||''),{method:'PATCH',body:JSON.stringify({enabled:false})});
    return json({enabled:false},200,cors);
   }
   if(body.action==='status'){
-   const rows=await rest('constancia_push_reminders?user_id=eq.'+user+'&endpoint=eq.'+encodeURIComponent(body.endpoint||'')+'&select=enabled,remind_at')||[];
+   const rows=await rest('constancia_push_reminders?user_id=eq.'+user+'&kind=eq.'+kind+'&endpoint=eq.'+encodeURIComponent(body.endpoint||'')+'&select=enabled,remind_at')||[];
    return json(rows[0]||{enabled:false},200,cors);
   }
   return json({error:'Ação desconhecida.'},400,cors);

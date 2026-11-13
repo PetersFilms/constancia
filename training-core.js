@@ -3,6 +3,8 @@
  const groups=['Peito','Costas','Ombros','Bíceps','Tríceps','Antebraços','Quadríceps','Posteriores de coxa','Glúteos','Panturrilhas','Abdômen','Corpo inteiro','Não classificado'];
  const presets=[{name:'Peito e tríceps',groups:['Peito','Tríceps']},{name:'Costas e bíceps',groups:['Costas','Bíceps']},{name:'Ombros e abdômen',groups:['Ombros','Abdômen']},{name:'Pernas completo',groups:['Quadríceps','Posteriores de coxa','Glúteos','Panturrilhas']},{name:'Quadríceps e panturrilhas',groups:['Quadríceps','Panturrilhas']},{name:'Posteriores e glúteos',groups:['Posteriores de coxa','Glúteos']},{name:'Superiores',groups:['Peito','Costas','Ombros','Bíceps','Tríceps']},{name:'Corpo inteiro',groups:['Corpo inteiro']},...groups.filter(g=>!['Corpo inteiro','Não classificado'].includes(g)).map(name=>({name,groups:[name]}))];
  const labels={energy:['Péssima','Baixa','Regular','Boa','Excelente'],food:['Péssima','Ruim','Regular','Boa','Excelente'],stress:['Muito baixo','Baixo','Moderado','Alto','Muito alto'],performance:['Muito abaixo do esperado','Abaixo do esperado','Dentro do esperado','Bom','Excelente']};
+ const modalities=['academia','hyrox','cross'];
+ const wodTypes=['For Time','AMRAP','EMOM','Chipper','Intervalado','Hyrox Full','Hyrox Doubles','Outro'];
  const normalize=s=>String(s||'').trim().replace(/\s+/g,' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  const validDate=d=>typeof d==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!isNaN(new Date(d+'T12:00:00'))&&new Date(d+'T12:00:00').toISOString().slice(0,10)===d;
  const seed=()=>({version:1,sessions:[],exercises:[],workouts:[]});
@@ -15,6 +17,8 @@
   for(const s of t.sessions){
    if(!s||!text(s.id,80)||!/^[a-zA-Z0-9-]{1,80}$/.test(s.id)||ids.has(s.id)||!validDate(s.date)||!text(s.name,80)||!s.name.trim()||!groupList(s.groups)||!number(s.duration,1,1440)||!number(s.performance,1,5)||!number(s.energy,1,5)||!number(s.food,1,5)||!number(s.sleep,0,24)||!number(s.stress,1,5)||!text(s.foodNotes||'',1200)||!text(s.dayNotes||'',2000)||!text(s.notes||'',2000)||!Array.isArray(s.exercises)||s.exercises.length>100)throw Error('Registro de treino inválido.');
    for(const k of ['performance','energy','food','stress'])if(s[k]!=null&&!Number.isInteger(s[k]))throw Error('Descrição de contexto inválida.');
+   if(s.modality!==undefined&&!modalities.includes(s.modality))throw Error('Modalidade inválida.');
+   if(s.wod!==undefined&&(!s.wod||typeof s.wod!=='object'||Array.isArray(s.wod)||!text(s.wod.type||'',40)||!text(s.wod.result||'',120)))throw Error('Registro de WOD inválido.');
    ids.add(s.id);
    for(const e of s.exercises){
     if(!e||!text(e.id,80)||!/^[a-zA-Z0-9-]{1,80}$/.test(e.id)||!text(e.name,100)||!e.name.trim()||(e.group!==undefined&&!groups.includes(e.group))||!text(e.method||'',120)||!text(e.notes||'',600)||!Array.isArray(e.sets)||e.sets.length>100)throw Error('Exercício inválido.');
@@ -52,6 +56,6 @@
   if(!compared)messages.unshift('Ainda não há seis sessões avaliadas do mesmo treino, distribuídas em pelo menos quatro dias. Por enquanto, não há base suficiente para sugerir uma semana mais leve ou mais pesada.');
   return {title:'Uma leitura para os próximos treinos',messages,evidence};
  }
- root.Training={groups,presets,labels,normalize,seed,validate,validDate,load,loadType,volume,setCount,bestLoad,exerciseCatalog,workoutCatalog,exerciseGroup,grouped,points,rankings,association,guidance};
+ root.Training={groups,presets,labels,modalities,wodTypes,normalize,seed,validate,validDate,load,loadType,volume,setCount,bestLoad,exerciseCatalog,workoutCatalog,exerciseGroup,grouped,points,rankings,association,guidance};
  if(typeof module!=='undefined')module.exports=root.Training;
 })(typeof window!=='undefined'?window:globalThis);
