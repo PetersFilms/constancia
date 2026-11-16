@@ -52,16 +52,26 @@
  }
  function saveRecord(s,input,at=new Date().toISOString()){
   if(!validDate(input.date)||input.date>nowDay(input.timeZone||s.settings.timeZone)||Date.parse(input.wakeAt)>Date.parse(at))throw Error('Registre uma noite já encerrada.');
-  const old=s.records.find(r=>r.date===input.date),g=old?.goal||goalAt(s,input.date),p=old?.planned||planned(s,null,input.date);
+  const old=s.records.find(r=>r.date===input.date&&(r.kind==null||r.kind==='night')),g=old?.goal||goalAt(s,input.date),p=old?.planned||planned(s,null,input.date);
   const r={...old,...input,id:old?.id||uuid(),timeZone:input.timeZone||s.settings.timeZone,kind:old?.kind||'night',source:old?.source||'manual',goal:copy(g),planned:p?{start:p.start,end:p.end,goalMinutes:p.goalMinutes}:null,createdAt:old?.createdAt||at,updatedAt:at};
   Object.assign(r,calculate(r));record(r);if(old)s.records[s.records.indexOf(old)]=r;else s.records.push(r);audit(s,'record',r.id,old||{},r,at);return r;
  }
+ // Sonecas compõem o sono do dia, mas ficam fora das métricas noturnas: uma noite por data; sonecas por id.
+ const nights=rs=>rs.filter(r=>r.kind==null||r.kind==='night');
+ function saveNap(s,input,at=new Date().toISOString()){
+  if(!validDate(input.date)||input.date>nowDay(input.timeZone||s.settings.timeZone)||Date.parse(input.wakeAt)>Date.parse(at))throw Error('Registre uma soneca já encerrada.');
+  const old=input.id?s.records.find(r=>r.id===input.id&&r.kind==='nap'):null;
+  if(input.id&&!old)throw Error('Soneca não encontrada.');
+  const r={...old,...input,id:old?.id||uuid(),kind:'nap',source:old?.source||'manual',timeZone:input.timeZone||s.settings.timeZone,goal:old?.goal||copy(goalAt(s,input.date)),planned:null,createdAt:old?.createdAt||at,updatedAt:at};
+  Object.assign(r,calculate(r));record(r);if(old)s.records[s.records.indexOf(old)]=r;else s.records.push(r);audit(s,'record',r.id,old||{},r,at);return r;
+ }
+ function removeNap(s,id,at=new Date().toISOString()){const old=s.records.find(r=>r.id===id&&r.kind==='nap');if(!old)throw Error('Soneca não encontrada.');s.records=s.records.filter(r=>r!==old);audit(s,'record',id,old,{},at);return old;}
  function record(r){
   calculate(r);if(!r.id||typeof r.id!=='string'||!num(r.quality,1,5)||!num(r.energy,1,5)||[r.quality,r.energy].some(v=>v!=null&&!Number.isInteger(v))||typeof(r.notes||'')!=='string'||(r.notes||'').length>4000||!r.goal||!num(r.goal.goalMinutes,60,1080)||r.goal.goalMinutes==null||!instant(r.createdAt)||!instant(r.updatedAt))throw Error('Registro de sono inválido.');return r;
  }
  function validate(s){
   if(!s||s.version!==1)throw Error('Histórico do sono inválido.');settings(s.settings);
-  for(const k of ['records','settingsVersions','plans','history']){if(!Array.isArray(s[k])||s[k].length>(k==='history'?50000:10000))throw Error('Coleção do sono inválida.');const seen=new Set();for(const x of s[k]){const id=k==='records'?x.date:x.id;if(!id||seen.has(id))throw Error('Registro de sono duplicado.');seen.add(id);}}
+  for(const k of ['records','settingsVersions','plans','history']){if(!Array.isArray(s[k])||s[k].length>(k==='history'?50000:10000))throw Error('Coleção do sono inválida.');const seen=new Set();for(const x of s[k]){const id=k==='records'?((x.kind==null||x.kind==='night')?'n:'+x.date:x.id):x.id;if(!id||seen.has(id))throw Error('Registro de sono duplicado.');seen.add(id);}}
   s.records.forEach(record);for(const v of s.settingsVersions){if(!validDate(v.effectiveDate)||!instant(v.at))throw Error('Versão de meta inválida.');settings(v.settings);}
   for(const p of s.plans)if(p.seriesDays&&(!Array.isArray(p.seriesDays)||!p.seriesDays.length||p.seriesDays.some(d=>!Number.isInteger(d)||d<0||d>6)||!validDate(p.until)||p.until<p.date||!time(p.wakeTime))||!validDate(p.date)||!instant(p.start)||!instant(p.end)||Date.parse(p.end)<=Date.parse(p.start)||!num(p.goalMinutes,60,1080)||p.goalMinutes==null||!instant(p.createdAt)||!instant(p.updatedAt))throw Error('Planejamento de sono inválido.');
   for(const h of s.history)if(!instant(h.at)||typeof h.type!=='string')throw Error('Histórico de alterações inválido.');return s;
@@ -138,5 +148,5 @@
   const met=productivity.filter(p=>p.sleep>=p.goal&&p.rate!=null),below=productivity.filter(p=>p.sleep<p.goal&&p.rate!=null);
   return {habit,training,trainingDuration,workouts,productivity,execution:{met:{n:met.length,mean:mean(met.map(p=>p.rate))},below:{n:below.length,mean:mean(below.map(p=>p.rate))},sufficient:met.length>=5&&below.length>=5}};
  }
- root.SleepCore={parseGoalHours,recommend,weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
+ root.SleepCore={parseGoalHours,recommend,weekdays,seed,validate,settings,configured,configure,goalAt,calculate,saveRecord,nights,saveNap,removeNap,suggest,planned,setPlan,exportPlan,exportSeries,endSeries,conflicts,duration,mean,minutes,circleDiff,circular,range,metrics,associations,nowDay,copy};if(typeof module!=='undefined')module.exports=root.SleepCore;
 })(typeof window!=='undefined'?window:globalThis);
