@@ -92,6 +92,14 @@ input::placeholder,textarea::placeholder{color:var(--muted)}
  .page-tabs{background:var(--glass)}
 }
 
+/* v68 · Dias feitos no ano, no card Evolução. */
+.year-habits{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
+.year-habits h3{font-size:12px;font-weight:550;margin:0 0 6px}
+.year-habit-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px}
+.year-habit-row:last-of-type{border-bottom:0}
+.year-habit-row b{font-weight:500;white-space:nowrap}
+.year-habit-row small{color:var(--muted)}
+
 /* v64 · Modo escuro: mesmos tokens, noite de ardósia; o app de sono não precisa dar flashbang. */
 @media(prefers-color-scheme:dark){
  :root{--bg:#121A20;--paper:#1B2630;--ink:#E7EDF1;--muted:#93A4AF;--line:#2C3A44;--green:#5B7488;--pale:#243039;--accent:#58AA7D;--on-green:#F5FAF7;--heat0:#223039;--heat1:#28473A;--heat2:#346A4C;--heat3:#4C9168;--heat4:#6DC08D;--glass:#121A20F2;color-scheme:dark}

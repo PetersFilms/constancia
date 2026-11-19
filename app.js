@@ -50,6 +50,9 @@ function render(){
  $('rate').innerHTML=`${p.rate}<span>%</span>`;
  const previous=H.period(state,H.shift(today,-p.points.length),p.points.length);
  $('comparison').textContent=!p.planned?'Seu gráfico começa com o primeiro hábito.':!previous.planned?'Seu ponto de partida. Cada registro constrói o próximo.':`${p.rate-previous.rate>0?'+':''}${p.rate-previous.rate} pontos percentuais em relação aos ${p.points.length} dias anteriores.`;
+ const year=today.slice(0,4),yearCounts=state.habits.map(h=>({h,n:Object.keys(state.checks[h.id]||{}).filter(d=>d.startsWith(year)).length})).filter(x=>x.n||!x.h.archivedOn).sort((a,b)=>b.n-a.n||a.h.name.localeCompare(b.h.name,'pt-BR'));
+ const yearDays=new Date(+year,1,29).getMonth()===1?366:365;
+ $('yearHabits').innerHTML=yearCounts.length?`<div class="year-habits"><h3>Hábitos executados</h3>${yearCounts.map(x=>`<div class="year-habit-row"><span>${esc(x.h.name)}${x.h.archivedOn?' <small>· arquivado</small>':''}</span><b>${x.n}<small>/${yearDays}</small></b></div>`).join('')}<p class="chart-note">Dias com o hábito marcado em ${year}, somando registros feitos em outras datas.</p></div>`:'';
  renderChart(p);renderCalendar();if($('dayDialog').open)renderDayChoices();
  const archived=state.habits.filter(h=>h.archivedOn);$('archiveCount').textContent=`(${archived.length})`;$('archivedList').innerHTML=archived.length?archived.map(h=>`<div class="archived-row"><span>${esc(h.name)}</span><button class="quiet" data-restore="${h.id}">Reativar</button></div>`).join(''):'<p>Nenhum hábito arquivado.</p>';
 }
